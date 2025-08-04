@@ -99,13 +99,16 @@
   <!-- Toast -->
   <div id="toast" class="toast" hidden>Copied!</div>
 
+  <!-- SheetJS for browser-side Excel build -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.19.3/dist/xlsx.full.min.js"></script>
+
   <script>
     const API_BASE = "https://prompt-api.magistralofficialwork.workers.dev";
 
     // State
     let allPrompts = [];
     let editingId = null;
-    let viewing = null; // current prompt object in view modal
+    let viewing = null;
 
     // Elements
     const listEl = document.getElementById('promptList');
@@ -121,7 +124,6 @@
     const textInput = document.getElementById('textInput');
     const contribInput = document.getElementById('contribInput');
     const modalTitle = document.getElementById('modalTitle');
-    const toast = document.getElementById('toast');
 
     // View modal elements
     const vModal = document.getElementById('viewModal');
@@ -136,12 +138,31 @@
     const vDelete = document.getElementById('vDelete');
     const vClose = document.getElementById('vClose');
 
+    const toast = document.getElementById('toast');
+
     function showToast(msg) {
       toast.textContent = msg;
       toast.hidden = false;
       setTimeout(() => (toast.hidden = true), 1200);
     }
+
     function esc(s){ return (s ?? '').toString().replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) }
+
+    // D1 stores UTC as "YYYY-MM-DD HH:MM:SS". Parse as UTC, then show local with zone.
+    function parseDbTime(s){
+      if(!s) return null;
+      const iso = s.includes('T') ? s : s.replace(' ', 'T') + 'Z';
+      return new Date(iso);
+    }
+    function fmtLocal(dt){
+      if(!dt) return '';
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      return new Intl.DateTimeFormat(undefined, {
+        year:'numeric', month:'numeric', day:'numeric',
+        hour:'numeric', minute:'2-digit', second:'2-digit',
+        timeZone: tz, timeZoneName:'short'
+      }).format(dt);
+    }
     function asLinkIfURL(text){
       if(!text) return '';
       try { const u = new URL(text); return `<a href="${u.href}" target="_blank" class="tool">${esc(u.hostname)}</a>`; }
@@ -149,8 +170,8 @@
     }
 
     function cardHTML(p) {
-      const created = new Date(p.created_at).toLocaleString();
-      const edited = p.last_editor ? ` • Edited: ${p.last_editor} (${new Date(p.last_edited_at).toLocaleString()})` : '';
+      const created = fmtLocal(parseDbTime(p.created_at));
+      const edited = p.last_editor ? ` • Edited: ${p.last_editor} (${fmtLocal(parseDbTime(p.last_edited_at))})` : '';
       const copies = (p.copied_count ?? 0) > 0 ? `<span class="mini-chip">${p.copied_count} copies</span>` : '';
       return `
         <article class="card" data-open="${p.id}">
@@ -231,22 +252,62 @@
       const p = allPrompts.find(x => x.id === id);
       if(!p) return;
       viewing = p;
-      vhCat.textContent = p.service || '';
+      document.getElementById('vhCat').textContent = p.service || '';
+      const vhSub = document.getElementById('vhSub');
       vhSub.textContent = p.subtype || '';
       vhSub.style.display = p.subtype ? 'inline-block' : 'none';
-      vhTool.innerHTML = asLinkIfURL(p.ai_tool);
-      vhDesc.textContent = p.description || '';
-      vhDesc.style.display = p.description ? 'block' : 'none';
-      const created = new Date(p.created_at).toLocaleString();
-      const edited = p.last_editor ? ` • Edited: ${p.last_editor} (${new Date(p.last_edited_at).toLocaleString()})` : '';
-      vhTimes.textContent = `By ${p.contributor} • ${created}${edited}`;
-      vhText.textContent = p.prompt_text || '';
-      vModal.showModal();
+      document.getElementById('vhTool').innerHTML = asLinkIfURL(p.ai_tool);
+      const d = document.getElementById('vhDesc'); d.textContent = p.description || ''; d.style.display = p.description ? 'block' : 'none';
+      document.getElementById('vhTimes').textContent =
+        `By ${p.contributor} • ${fmtLocal(parseDbTime(p.created_at))}` +
+        (p.last_editor ? ` • Edited: ${p.last_editor} (${fmtLocal(parseDbTime(p.last_edited_at))})` : '');
+      document.getElementById('vhText').textContent = p.prompt_text || '';
+      document.getElementById('viewModal').showModal();
     }
 
     async function incrementCopy(id){
-      try { await fetch(`${API_BASE}/api/prompts/${id}/copied`, { method:'POST' }); }
-      catch {}
+      try { await fetch(`${API_BASE}/api/prompts/${id}/copied`, { method:'POST' }); } catch {}
+    }
+
+    // Export to Excel (browser)
+    async function exportToExcel(){
+      const res = await fetch(`${API_BASE}/api/prompts`);
+      const rows = await res.json();
+
+      // Group by Category (service)
+      const byService = {};
+      for (const r of rows) {
+        (byService[r.service ?? "Uncategorized"] ??= []).push({
+          "Prompt ID": r.id,
+          "Prompt Text": r.prompt_text,
+          "Contributor Name": r.contributor,
+          "Created Date": r.created_at,
+          "Last Edited By": r.last_editor,
+          "Last Edited Date": r.last_edited_at,
+          "Subtype": r.subtype ?? "",
+          "Description": r.description ?? "",
+          "AI Tool": r.ai_tool ?? "",
+          "Copied Count": r.copied_count ?? 0
+        });
+      }
+
+      const wb = XLSX.utils.book_new();
+      const keys = Object.keys(byService).length ? Object.keys(byService) : ["All Prompts"];
+      if (keys.length === 1 && keys[0] === "All Prompts") {
+        const ws = XLSX.utils.json_to_sheet(rows);
+        XLSX.utils.book_append_sheet(wb, ws, "All Prompts");
+      } else {
+        for (const svc of keys) {
+          const ws = XLSX.utils.json_to_sheet(byService[svc]);
+          XLSX.utils.book_append_sheet(wb, ws, svc.slice(0,31));
+        }
+      }
+      const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+      const blob = new Blob([wbout], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = "prompts.xlsx"; a.click();
+      URL.revokeObjectURL(url);
     }
 
     // Events
@@ -261,9 +322,7 @@
       contribInput.value = 'Tanya';
       modal.showModal();
     };
-    document.getElementById('exportBtn').onclick = () => {
-      window.location.href = `${API_BASE}/api/export`;
-    };
+    document.getElementById('exportBtn').onclick = exportToExcel;
     searchBox.oninput = render;
     categorySelect.onchange = async () => { await refreshTaxonomy(); await loadPrompts(); };
     subtypeSelect.onchange = loadPrompts;
@@ -316,18 +375,18 @@
       textInput.value = viewing.prompt_text || '';
       contribInput.value = viewing.contributor || 'Tanya';
       modalTitle.textContent = 'Edit Prompt';
-      vModal.close();
+      document.getElementById('viewModal').close();
       modal.showModal();
     };
     vDelete.onclick = async () => {
       if(!viewing) return;
       if (!confirm('Delete this prompt?')) return;
       await fetch(`${API_BASE}/api/prompts/${viewing.id}`, { method:'DELETE' });
-      vModal.close();
+      document.getElementById('viewModal').close();
       await loadPrompts();
       showToast('Deleted');
     };
-    vClose.onclick = () => vModal.close();
+    vClose.onclick = () => document.getElementById('viewModal').close();
 
     // Init
     (async () => { await refreshTaxonomy(); await loadPrompts(); })();
