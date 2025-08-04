@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Prompt Hub</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- HEADER -->
+  <header class="site-header">
+    <div class="wrap">
+      <h1>Prompt Hub</h1>
+      <p class="tagline">Store • Edit • Export AI Prompts</p>
+    </div>
+  </header>
+
+  <!-- TOP TOOLBAR -->
+  <div class="toolbar">
+    <div class="wrap toolbar-inner">
+      <div class="left">
+        <input id="searchBox" placeholder="Search text...">
+        <input id="serviceFilter" placeholder="Filter by service (optional)">
+        <button id="refreshBtn" class="btn">Refresh</button>
+      </div>
+      <div class="right">
+        <button id="addBtn" class="btn btn-accent">➕ Add Prompt</button>
+        <button id="exportBtn" class="btn btn-primary">⬇️ Export to Excel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <main class="wrap">
+    <nav id="serviceTabs" class="tabs"></nav>
+    <section id="promptList" class="grid"></section>
+  </main>
+
+  <!-- ADD / EDIT MODAL -->
+  <dialog id="promptModal">
+    <form id="promptForm" method="dialog">
+      <h3 id="modalTitle">Add Prompt</h3>
+      <label>Service
+        <input id="serviceInput" required>
+      </label>
+      <label>Prompt
+        <textarea id="textInput" required></textarea>
+      </label>
+      <label>Contributor
+        <input id="contribInput" value="Tanya" required>
+      </label>
+      <menu>
+        <button value="cancel" class="btn">Cancel</button>
+        <button id="saveBtn" value="default" class="btn btn-accent">Save</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" hidden>Copied!</div>
+
+  <!-- SCRIPT -->
+  <script>
+    // Your live API (already working)
+    const API_BASE = "https://prompt-api.magistralofficialwork.workers.dev";
+
+    // State
+    let allPrompts = [];
+    let editingId = null; // null = add mode; number = edit mode
+
+    // Elements
+    const listEl = document.getElementById('promptList');
+    const tabsEl = document.getElementById('serviceTabs');
+    const searchBox = document.getElementById('searchBox');
+    const serviceFilter = document.getElementById('serviceFilter');
+    const modal = document.getElementById('promptModal');
+    const form = document.getElementById('promptForm');
+    const serviceInput = document.getElementById('serviceInput');
+    const textInput = document.getElementById('textInput');
+    const contribInput = document.getElementById('contribInput');
+    const modalTitle = document.getElementById('modalTitle');
+    const toast = document.getElementById('toast');
+
+    // Helpers
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.hidden = false;
+      setTimeout(() => (toast.hidden = true), 1200);
+    }
+
+    function cardHTML(p) {
+      const created = new Date(p.created_at).toLocaleString();
+      const edited = p.last_editor ? ` • Edited: ${p.last_editor} (${new Date(p.last_edited_at).toLocaleString()})` : '';
+      return `
+        <article class="card">
+          <div class="card-body">
+            <pre class="prompt-text">${p.prompt_text}</pre>
+            <div class="meta">
+              <span><b>Service:</b> ${p.service}</span>
+              <span><b>By:</b> ${p.contributor}</span>
+              <span><b>Created:</b> ${created}</span>
+              ${edited ? `<span>${edited}</span>` : ``}
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn" data-copy="${p.id}">📋 Copy</button>
+            <button class="btn" data-edit="${p.id}">✏️ Edit</button>
+            <button class="btn btn-danger" data-del="${p.id}">🗑️ Delete</button>
+          </div>
+        </article>
+      `;
+    }
+
+    function buildTabs(prompts) {
+      const services = [...new Set(prompts.map(p => p.service))].sort();
+      tabsEl.innerHTML = '';
+      if (!services.length) return;
+      const all = document.createElement('button');
+      all.className = 'tab active';
+      all.textContent = 'All';
+      all.onclick = () => {
+        serviceFilter.value = '';
+        render();
+        [...tabsEl.children].forEach(t => t.classList.remove('active'));
+        all.classList.add('active');
+      };
+      tabsEl.appendChild(all);
+
+      services.forEach(s => {
+        const b = document.createElement('button');
+        b.className = 'tab';
+        b.textContent = s;
+        b.onclick = () => {
+          serviceFilter.value = s;
+          render();
+          [...tabsEl.children].forEach(t => t.classList.remove('active'));
+          b.classList.add('active');
+        };
+        tabsEl.appendChild(b);
+      });
+    }
+
+    function render() {
+      let data = [...allPrompts];
+
+      const term = searchBox.value.trim().toLowerCase();
+      if (term) {
+        data = data.filter(p =>
+          p.prompt_text.toLowerCase().includes(term) ||
+          p.service.toLowerCase().includes(term) ||
+          p.contributor.toLowerCase().includes(term)
+        );
+      }
+
+      const svc = serviceFilter.value.trim().toLowerCase();
+      if (svc) data = data.filter(p => p.service.toLowerCase() === svc);
+
+      listEl.innerHTML = data.map(cardHTML).join('') || `<p class="muted">No prompts yet. Click <b>Add Prompt</b> to create one.</p>`;
+
+      // Hook up buttons
+      listEl.querySelectorAll('[data-copy]').forEach(btn => {
+        btn.onclick = () => {
+          const id = Number(btn.getAttribute('data-copy'));
+          const p = allPrompts.find(x => x.id === id);
+          navigator.clipboard.writeText(p.prompt_text).then(() => showToast('Copied!'));
+        };
+      });
+
+      listEl.querySelectorAll('[data-edit]').forEach(btn => {
+        btn.onclick = () => {
+          const id = Number(btn.getAttribute('data-edit'));
+          const p = allPrompts.find(x => x.id === id);
+          editingId = id;
+          modalTitle.textContent = 'Edit Prompt';
+          serviceInput.value = p.service;
+          textInput.value = p.prompt_text;
+          contribInput.value = p.contributor || 'Tanya';
+          modal.showModal();
+        };
+      });
+
+      listEl.querySelectorAll('[data-del]').forEach(btn => {
+        btn.onclick = async () => {
+          const id = Number(btn.getAttribute('data-del'));
+          if (!confirm('Delete this prompt?')) return;
+          await fetch(`${API_BASE}/api/prompts/${id}`, { method: 'DELETE' });
+          await loadPrompts();
+          showToast('Deleted');
+        };
+      });
+    }
+
+    async function loadPrompts() {
+      const svc = serviceFilter.value.trim();
+      const url = svc ? `${API_BASE}/api/prompts?service=${encodeURIComponent(svc)}` : `${API_BASE}/api/prompts`;
+      const res = await fetch(url);
+      allPrompts = await res.json();
+      buildTabs(allPrompts);
+      render();
+    }
+
+    // Events
+    document.getElementById('refreshBtn').onclick = loadPrompts;
+    document.getElementById('addBtn').onclick = () => {
+      editingId = null;
+      modalTitle.textContent = 'Add Prompt';
+      form.reset();
+      contribInput.value = 'Tanya';
+      modal.showModal();
+    };
+    document.getElementById('exportBtn').onclick = () => {
+      window.location.href = `${API_BASE}/api/export`;
+    };
+    searchBox.oninput = render;
+    serviceFilter.oninput = render;
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const body = {
+        service: serviceInput.value.trim(),
+        prompt_text: textInput.value.trim(),
+        contributor: contribInput.value.trim()
+      };
+      if (editingId === null) {
+        // Create
+        await fetch(`${API_BASE}/api/prompts`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        showToast('Added');
+      } else {
+        // Update
+        await fetch(`${API_BASE}/api/prompts/${editingId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt_text: body.prompt_text, editor: 'Tanya' })
+        });
+        showToast('Updated');
+      }
+      modal.close();
+      await loadPrompts();
+    });
+
+    // Init
+    loadPrompts();
+  </script>
+</body>
+</html>
