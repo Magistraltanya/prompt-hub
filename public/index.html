@@ -20,7 +20,8 @@
     <div class="wrap toolbar-inner">
       <div class="left">
         <input id="searchBox" placeholder="Search text...">
-        <input id="serviceFilter" placeholder="Filter by service (optional)">
+        <select id="categorySelect"><option value="">All categories</option></select>
+        <select id="subtypeSelect" disabled><option value="">All subtypes</option></select>
         <button id="refreshBtn" class="btn">Refresh</button>
       </div>
       <div class="right">
@@ -32,7 +33,6 @@
 
   <!-- CONTENT -->
   <main class="wrap">
-    <nav id="serviceTabs" class="tabs"></nav>
     <section id="promptList" class="grid"></section>
   </main>
 
@@ -40,15 +40,33 @@
   <dialog id="promptModal">
     <form id="promptForm" method="dialog">
       <h3 id="modalTitle">Add Prompt</h3>
-      <label>Service
-        <input id="serviceInput" required>
+
+      <div class="two">
+        <label>Category (e.g., Research, Marketing)
+          <input id="serviceInput" required>
+        </label>
+        <label>Subtype (e.g., CIM, Decks)
+          <input id="subtypeInput">
+        </label>
+      </div>
+
+      <label>Short description (1–2 lines)
+        <input id="descInput" maxlength="200" placeholder="What this prompt produces...">
       </label>
-      <label>Prompt
+
+      <div class="two">
+        <label>AI tool
+          <input id="toolInput" placeholder="ChatGPT, DALL·E, etc.">
+        </label>
+        <label>Contributor
+          <input id="contribInput" value="Tanya" required>
+        </label>
+      </div>
+
+      <label>Prompt (full text)
         <textarea id="textInput" required></textarea>
       </label>
-      <label>Contributor
-        <input id="contribInput" value="Tanya" required>
-      </label>
+
       <menu>
         <button value="cancel" class="btn">Cancel</button>
         <button id="saveBtn" value="default" class="btn btn-accent">Save</button>
@@ -59,85 +77,70 @@
   <!-- Toast -->
   <div id="toast" class="toast" hidden>Copied!</div>
 
-  <!-- SCRIPT -->
   <script>
-    // Your live API (already working)
+    // Your live API
     const API_BASE = "https://prompt-api.magistralofficialwork.workers.dev";
 
     // State
     let allPrompts = [];
-    let editingId = null; // null = add mode; number = edit mode
+    let editingId = null;
 
     // Elements
     const listEl = document.getElementById('promptList');
-    const tabsEl = document.getElementById('serviceTabs');
     const searchBox = document.getElementById('searchBox');
-    const serviceFilter = document.getElementById('serviceFilter');
+    const categorySelect = document.getElementById('categorySelect');
+    const subtypeSelect = document.getElementById('subtypeSelect');
     const modal = document.getElementById('promptModal');
     const form = document.getElementById('promptForm');
     const serviceInput = document.getElementById('serviceInput');
+    const subtypeInput = document.getElementById('subtypeInput');
+    const descInput = document.getElementById('descInput');
+    const toolInput = document.getElementById('toolInput');
     const textInput = document.getElementById('textInput');
     const contribInput = document.getElementById('contribInput');
     const modalTitle = document.getElementById('modalTitle');
     const toast = document.getElementById('toast');
 
-    // Helpers
     function showToast(msg) {
       toast.textContent = msg;
       toast.hidden = false;
       setTimeout(() => (toast.hidden = true), 1200);
     }
 
-    function cardHTML(p) {
+    function esc(s){ return (s ?? '').toString().replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) }
+
+    // Collapsed item (details/summary)
+    function rowHTML(p) {
       const created = new Date(p.created_at).toLocaleString();
       const edited = p.last_editor ? ` • Edited: ${p.last_editor} (${new Date(p.last_edited_at).toLocaleString()})` : '';
+      const header = [
+        `<b>${esc(p.service)}</b>`,
+        p.subtype ? `• <span class="chip">${esc(p.subtype)}</span>` : ``,
+        p.description ? `— ${esc(p.description)}` : ``
+      ].join(' ');
+
       return `
-        <article class="card">
-          <div class="card-body">
-            <pre class="prompt-text">${p.prompt_text}</pre>
-            <div class="meta">
-              <span><b>Service:</b> ${p.service}</span>
-              <span><b>By:</b> ${p.contributor}</span>
-              <span><b>Created:</b> ${created}</span>
-              ${edited ? `<span>${edited}</span>` : ``}
+        <details class="row">
+          <summary>
+            <div class="row-summary">
+              <div class="summary-main">${header}</div>
+              <div class="summary-side">
+                <span class="muted">By ${esc(p.contributor)} • ${created}${edited}</span>
+                ${p.ai_tool ? `<span class="tool">${esc(p.ai_tool)}</span>` : ``}
+              </div>
+            </div>
+          </summary>
+
+          <div class="row-body">
+            <pre class="prompt-text">${esc(p.prompt_text)}</pre>
+            <div class="actions">
+              <button class="btn" data-copy="${p.id}">📋 Copy</button>
+              <button class="btn" data-edit="${p.id}">✏️ Edit</button>
+              <button class="btn btn-danger" data-del="${p.id}">🗑️ Delete</button>
             </div>
           </div>
-          <div class="actions">
-            <button class="btn" data-copy="${p.id}">📋 Copy</button>
-            <button class="btn" data-edit="${p.id}">✏️ Edit</button>
-            <button class="btn btn-danger" data-del="${p.id}">🗑️ Delete</button>
-          </div>
-        </article>
+        </details>
       `;
-    }
-
-    function buildTabs(prompts) {
-      const services = [...new Set(prompts.map(p => p.service))].sort();
-      tabsEl.innerHTML = '';
-      if (!services.length) return;
-      const all = document.createElement('button');
-      all.className = 'tab active';
-      all.textContent = 'All';
-      all.onclick = () => {
-        serviceFilter.value = '';
-        render();
-        [...tabsEl.children].forEach(t => t.classList.remove('active'));
-        all.classList.add('active');
-      };
-      tabsEl.appendChild(all);
-
-      services.forEach(s => {
-        const b = document.createElement('button');
-        b.className = 'tab';
-        b.textContent = s;
-        b.onclick = () => {
-          serviceFilter.value = s;
-          render();
-          [...tabsEl.children].forEach(t => t.classList.remove('active'));
-          b.classList.add('active');
-        };
-        tabsEl.appendChild(b);
-      });
     }
 
     function render() {
@@ -146,18 +149,24 @@
       const term = searchBox.value.trim().toLowerCase();
       if (term) {
         data = data.filter(p =>
-          p.prompt_text.toLowerCase().includes(term) ||
-          p.service.toLowerCase().includes(term) ||
-          p.contributor.toLowerCase().includes(term)
+          (p.prompt_text || '').toLowerCase().includes(term) ||
+          (p.service || '').toLowerCase().includes(term) ||
+          (p.subtype || '').toLowerCase().includes(term) ||
+          (p.description || '').toLowerCase().includes(term) ||
+          (p.ai_tool || '').toLowerCase().includes(term) ||
+          (p.contributor || '').toLowerCase().includes(term)
         );
       }
 
-      const svc = serviceFilter.value.trim().toLowerCase();
-      if (svc) data = data.filter(p => p.service.toLowerCase() === svc);
+      const cat = (categorySelect.value || '').toLowerCase();
+      if (cat) data = data.filter(p => (p.service || '').toLowerCase() === cat);
 
-      listEl.innerHTML = data.map(cardHTML).join('') || `<p class="muted">No prompts yet. Click <b>Add Prompt</b> to create one.</p>`;
+      const sub = (subtypeSelect.value || '').toLowerCase();
+      if (sub) data = data.filter(p => (p.subtype || '').toLowerCase() === sub);
 
-      // Hook up buttons
+      listEl.innerHTML = data.length ? data.map(rowHTML).join('') : `<p class="muted">No prompts match your filters.</p>`;
+
+      // Wire buttons inside rows
       listEl.querySelectorAll('[data-copy]').forEach(btn => {
         btn.onclick = () => {
           const id = Number(btn.getAttribute('data-copy'));
@@ -165,20 +174,21 @@
           navigator.clipboard.writeText(p.prompt_text).then(() => showToast('Copied!'));
         };
       });
-
       listEl.querySelectorAll('[data-edit]').forEach(btn => {
         btn.onclick = () => {
           const id = Number(btn.getAttribute('data-edit'));
           const p = allPrompts.find(x => x.id === id);
           editingId = id;
           modalTitle.textContent = 'Edit Prompt';
-          serviceInput.value = p.service;
-          textInput.value = p.prompt_text;
+          serviceInput.value = p.service || '';
+          subtypeInput.value = p.subtype || '';
+          descInput.value = p.description || '';
+          toolInput.value = p.ai_tool || '';
+          textInput.value = p.prompt_text || '';
           contribInput.value = p.contributor || 'Tanya';
           modal.showModal();
         };
       });
-
       listEl.querySelectorAll('[data-del]').forEach(btn => {
         btn.onclick = async () => {
           const id = Number(btn.getAttribute('data-del'));
@@ -191,16 +201,39 @@
     }
 
     async function loadPrompts() {
-      const svc = serviceFilter.value.trim();
-      const url = svc ? `${API_BASE}/api/prompts?service=${encodeURIComponent(svc)}` : `${API_BASE}/api/prompts`;
-      const res = await fetch(url);
+      const params = new URLSearchParams();
+      if (categorySelect.value) params.set('category', categorySelect.value);
+      if (subtypeSelect.value) params.set('subtype', subtypeSelect.value);
+      const res = await fetch(`${API_BASE}/api/prompts${params.toString() ? `?${params}` : ''}`);
       allPrompts = await res.json();
-      buildTabs(allPrompts);
       render();
     }
 
+    async function refreshTaxonomy() {
+      // Build category & subtype dropdowns from current dataset
+      const res = await fetch(`${API_BASE}/api/prompts`);
+      const all = await res.json();
+      const cats = [...new Set(all.map(p => p.service).filter(Boolean))].sort();
+      const currentCat = categorySelect.value;
+
+      categorySelect.innerHTML = `<option value="">All categories</option>` + cats.map(c => {
+        const sel = (c === currentCat) ? ' selected' : '';
+        return `<option${sel} value="${esc(c)}">${esc(c)}</option>`;
+      }).join('');
+
+      // Subtypes for selected category
+      const subs = all.filter(p => !currentCat || p.service === currentCat)
+                      .map(p => p.subtype).filter(Boolean);
+      const uniqueSubs = [...new Set(subs)].sort();
+      subtypeSelect.innerHTML = `<option value="">All subtypes</option>` + uniqueSubs.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+      subtypeSelect.disabled = uniqueSubs.length === 0;
+    }
+
     // Events
-    document.getElementById('refreshBtn').onclick = loadPrompts;
+    document.getElementById('refreshBtn').onclick = async () => {
+      await refreshTaxonomy();
+      await loadPrompts();
+    };
     document.getElementById('addBtn').onclick = () => {
       editingId = null;
       modalTitle.textContent = 'Add Prompt';
@@ -212,38 +245,61 @@
       window.location.href = `${API_BASE}/api/export`;
     };
     searchBox.oninput = render;
-    serviceFilter.oninput = render;
+    categorySelect.onchange = async () => {
+      await refreshTaxonomy();
+      await loadPrompts();
+    };
+    subtypeSelect.onchange = loadPrompts;
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const body = {
+      const payload = {
         service: serviceInput.value.trim(),
+        subtype: subtypeInput.value.trim() || null,
+        description: descInput.value.trim() || null,
+        ai_tool: toolInput.value.trim() || null,
         prompt_text: textInput.value.trim(),
         contributor: contribInput.value.trim()
       };
+
+      if (!payload.service || !payload.prompt_text || !payload.contributor) {
+        alert('Category, Prompt text, and Contributor are required.');
+        return;
+      }
+
       if (editingId === null) {
-        // Create
         await fetch(`${API_BASE}/api/prompts`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
+          body: JSON.stringify(payload)
         });
         showToast('Added');
       } else {
-        // Update
         await fetch(`${API_BASE}/api/prompts/${editingId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt_text: body.prompt_text, editor: 'Tanya' })
+          body: JSON.stringify({
+            service: payload.service,
+            subtype: payload.subtype,
+            description: payload.description,
+            ai_tool: payload.ai_tool,
+            prompt_text: payload.prompt_text,
+            editor: payload.contributor || 'Editor'
+          })
         });
         showToast('Updated');
       }
+
       modal.close();
+      await refreshTaxonomy();
       await loadPrompts();
     });
 
     // Init
-    loadPrompts();
+    (async () => {
+      await refreshTaxonomy();
+      await loadPrompts();
+    })();
   </script>
 </body>
 </html>
