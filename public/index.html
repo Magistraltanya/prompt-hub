@@ -4,79 +4,80 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Magistral Prompt Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <!-- HEADER -->
   <header class="site-header">
     <div class="wrap head-flex">
-      <div>
-        <h1>Magistral Prompt Hub</h1>
-        <p class="tagline">Store • Edit AI Prompts</p>
-      </div>
+      <a href="#" class="logo-area">
+        <svg viewBox="0 0 1024 1024" fill="currentColor"><path d="M928 160H96c-17.7 0-32 14.3-32 32v640c0 17.7 14.3 32 32 32h832c17.7 0 32-14.3 32-32V192c0-17.7-14.3-32-32-32zm-40 632H136V232h752v560zM224 336c0-4.4-3.6-8-8-8h-48c-4.4 0-8 3.6-8 8v48c0 4.4 3.6 8 8 8h48c4.4 0 8-3.6 8-8v-48zm224 0c0-4.4-3.6-8-8-8H272c-4.4 0-8 3.6-8 8v48c0 4.4 3.6 8 8 8h160c4.4 0 8-3.6 8-8v-48zm224 0c0-4.4-3.6-8-8-8H528c-4.4 0-8 3.6-8 8v48c0 4.4 3.6 8 8 8h112c4.4 0 8-3.6 8-8v-48zM224 496c0-4.4-3.6-8-8-8h-48c-4.4 0-8 3.6-8 8v48c0 4.4 3.6 8 8 8h48c4.4 0 8-3.6 8-8v-48zm224 0c0-4.4-3.6-8-8-8H272c-4.4 0-8 3.6-8 8v48c0 4.4 3.6 8 8 8h160c4.4 0 8-3.6 8-8v-48zm224 0c0-4.4-3.6-8-8-8H528c-4.4 0-8 3.6-8 8v48c0 4.4 3.6 8 8 8h112c4.4 0 8-3.6 8-8v-48z"></path></svg>
+        <div>
+          <h1>Magistral Prompt Hub</h1>
+          <p class="tagline">Store • Edit • Analyze AI Prompts</p>
+        </div>
+      </a>
     </div>
   </header>
 
-  <!-- TOP TOOLBAR -->
   <div class="toolbar">
     <div class="wrap toolbar-inner">
       <div class="left">
         <input id="searchBox" placeholder="Search text...">
         <select id="categorySelect"><option value="">All categories</option></select>
         <select id="subtypeSelect" disabled><option value="">All subtypes</option></select>
-        <button id="refreshBtn" class="btn">Refresh</button>
+        <button id="refreshBtn" class="btn">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M4 4l1.5 1.5A9 9 0 0120.5 15M20 20l-1.5-1.5A9 9 0 013.5 9"></path></svg>
+          Refresh
+        </button>
       </div>
       <div class="right">
-        <button id="addBtn" class="btn btn-accent">➕ Add Prompt</button>
+        <button id="exportBtn" class="btn">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            Export
+        </button>
+        <button id="analyticsBtn" class="btn">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+            Analytics
+        </button>
+        <button id="addBtn" class="btn btn-accent">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+          Add Prompt
+        </button>
       </div>
     </div>
   </div>
 
-  <!-- CONTENT -->
   <main class="wrap">
+    <div id="loader" class="loader" hidden>
+      <div class="loader-spinner"></div>
+      Loading Prompts...
+    </div>
     <section id="promptList" class="grid"></section>
   </main>
 
-  <!-- ADD / EDIT MODAL -->
   <dialog id="promptModal">
     <form id="promptForm" method="dialog">
       <h3 id="modalTitle">Add Prompt</h3>
-
       <div class="two">
-        <label>Category (e.g., Research, Marketing)
-          <input id="serviceInput" required>
-        </label>
-        <label>Subtype (e.g., CIM, Decks)
-          <input id="subtypeInput">
-        </label>
+        <label>Category (e.g., Research, Marketing)<input id="serviceInput" required></label>
+        <label>Subtype (e.g., CIM, Decks)<input id="subtypeInput"></label>
       </div>
-
-      <label>Short description (1–2 lines)
-        <input id="descInput" maxlength="200" placeholder="What this prompt produces...">
-      </label>
-
+      <label>Short description (1–2 lines)<input id="descInput" maxlength="200" placeholder="What this prompt produces..."></label>
       <div class="two">
-        <label>AI tool (name or URL)
-          <input id="toolInput" placeholder="ChatGPT, DALL·E, or https://...">
-        </label>
-        <label>Contributor
-          <input id="contribInput" value="Tanya" required>
-        </label>
+        <label>AI tool (name or URL)<input id="toolInput" placeholder="ChatGPT, DALL·E, or https://..."></label>
+        <label>Contributor<input id="contribInput" value="Tanya" required></label>
       </div>
-
-      <label>Prompt (full text)
-        <textarea id="textInput" required></textarea>
-      </label>
-
+      <label>Prompt (full text)<textarea id="textInput" required></textarea></label>
       <menu>
-        <!-- Cancel must be a button so it doesn't trigger validation -->
         <button type="button" id="cancelForm" class="btn">Cancel</button>
         <button id="saveBtn" value="default" class="btn btn-accent">Save</button>
       </menu>
     </form>
   </dialog>
 
-  <!-- VIEW MODAL -->
   <dialog id="viewModal">
     <div class="view-head">
       <div class="view-meta">
@@ -85,18 +86,42 @@
         <span id="vhTool" class="tool"></span>
       </div>
       <div class="view-actions">
-        <button id="vCopy" class="btn">📋 Copy</button>
-        <button id="vEdit" class="btn">✏️ Edit</button>
-        <button id="vDelete" class="btn btn-danger">🗑️ Delete</button>
-        <button id="vClose" class="btn">✖</button>
+        <button id="vCopy" class="btn"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg> Copy</button>
+        <button id="vEdit" class="btn"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z"></path></svg> Edit</button>
+        <button id="vDelete" class="btn btn-danger"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> Delete</button>
+        <button id="vClose" class="btn"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
       </div>
     </div>
-    <div class="view-desc" id="vhDesc"></div>
-    <div class="view-times" id="vhTimes"></div>
-    <pre class="prompt-text" id="vhText"></pre>
+    <article>
+        <div class="view-desc" id="vhDesc"></div>
+        <div class="view-times" id="vhTimes"></div>
+        <pre class="prompt-text" id="vhText"></pre>
+    </article>
+  </dialog>
+  
+  <dialog id="analyticsModal">
+      <div class="view-head">
+        <h3>Usage Analytics</h3>
+        <button id="analyticsClose" class="btn"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+      </div>
+      <div class="analytics-content">
+        <div class="analytics-grid">
+            <div class="analytics-card" id="topCopiedCard">
+                <h4>Most Copied Prompts</h4>
+                <ul class="analytics-list" id="topCopiedList"></ul>
+            </div>
+            <div class="analytics-card" id="coldPromptsCard">
+                <h4>Unused Prompts</h4>
+                <ul class="analytics-list" id="coldPromptsList"></ul>
+            </div>
+            <div class="analytics-card" id="categoryCountCard">
+                <h4>Usage by Category</h4>
+                <ul class="analytics-list" id="categoryCountList"></ul>
+            </div>
+        </div>
+      </div>
   </dialog>
 
-  <!-- Toast -->
   <div id="toast" class="toast" hidden>Copied!</div>
 
   <script>
@@ -108,6 +133,7 @@
     let viewing = null;
 
     // ------- Elements -------
+    const loader = document.getElementById('loader');
     const listEl = document.getElementById('promptList');
     const searchBox = document.getElementById('searchBox');
     const categorySelect = document.getElementById('categorySelect');
@@ -135,42 +161,41 @@
     const vDelete = document.getElementById('vDelete');
     const vClose = document.getElementById('vClose');
 
+    const analyticsModal = document.getElementById('analyticsModal');
+    
     const toast = document.getElementById('toast');
 
     // ------- Utils -------
-    function showToast(msg) { toast.textContent = msg; toast.hidden = false; setTimeout(()=>toast.hidden=true, 1200); }
-    function esc(s){ return (s ?? '').toString().replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) }
+    function showLoader() { loader.hidden = false; listEl.hidden = true; }
+    function hideLoader() { loader.hidden = true; listEl.hidden = false; }
+    function showToast(msg) { toast.textContent = msg; toast.hidden = false; setTimeout(()=>toast.hidden=true, 1500); }
+    function esc(s){ return (s ?? '').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])) }
     function parseDbTime(s){ if(!s) return null; const iso = s.includes('T') ? s : s.replace(' ','T') + 'Z'; return new Date(iso); }
     function fmtLocal(dt){
       if(!dt) return '';
-      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      return new Intl.DateTimeFormat(undefined, {
-        year:'numeric', month:'numeric', day:'numeric',
-        hour:'numeric', minute:'2-digit', second:'2-digit',
-        timeZone: tz, timeZoneName:'short'
-      }).format(dt);
+      return new Intl.DateTimeFormat(undefined, { dateStyle: 'short', timeStyle: 'short' }).format(dt);
     }
     function asLinkIfURL(text){
       if(!text) return '';
-      try { const u = new URL(text); return `<a href="${u.href}" target="_blank" class="tool">${esc(u.hostname)}</a>`; }
+      try { const u = new URL(text); return `<a href="${u.href}" target="_blank" rel="noopener noreferrer" class="tool">${esc(u.hostname)}</a>`; }
       catch { return `<span class="tool">${esc(text)}</span>`; }
     }
 
     function cardHTML(p){
       const created = fmtLocal(parseDbTime(p.created_at));
       const edited = p.last_editor ? ` • Edited: ${p.last_editor} (${fmtLocal(parseDbTime(p.last_edited_at))})` : '';
-      const copies = (p.copied_count ?? 0) > 0 ? `<span class="mini-chip">${p.copied_count} copies</span>` : '';
+      const copies = (p.copied_count ?? 0) > 0 ? `<span class="mini-chip">Copied ${p.copied_count} times</span>` : '';
       return `
         <article class="card" data-open="${p.id}">
           <div class="card-body">
             <div class="card-line">
               <span class="badge">${esc(p.service)}</span>
               ${p.subtype ? `<span class="chip">${esc(p.subtype)}</span>` : ``}
-              ${p.description ? `<span class="desc">${esc(p.description)}</span>` : ``}
             </div>
+            ${p.description ? `<p class="desc">${esc(p.description)}</p>` : ``}
             <div class="meta">
               <span>By ${esc(p.contributor)} • ${created}${edited}</span>
-              <span>${asLinkIfURL(p.ai_tool)}</span>
+              ${asLinkIfURL(p.ai_tool)}
               ${copies}
             </div>
           </div>
@@ -183,12 +208,7 @@
       const term = searchBox.value.trim().toLowerCase();
       if (term) {
         data = data.filter(p =>
-          (p.prompt_text || '').toLowerCase().includes(term) ||
-          (p.service || '').toLowerCase().includes(term) ||
-          (p.subtype || '').toLowerCase().includes(term) ||
-          (p.description || '').toLowerCase().includes(term) ||
-          (p.ai_tool || '').toLowerCase().includes(term) ||
-          (p.contributor || '').toLowerCase().includes(term)
+          Object.values(p).some(val => String(val).toLowerCase().includes(term))
         );
       }
       const cat = (categorySelect.value || '').toLowerCase();
@@ -200,30 +220,42 @@
       listEl.querySelectorAll('[data-open]').forEach(el => el.onclick = () => openView(Number(el.getAttribute('data-open'))));
     }
 
-    async function loadPrompts(){
-      const params = new URLSearchParams();
-      if (categorySelect.value) params.set('category', categorySelect.value);
-      if (subtypeSelect.value) params.set('subtype', subtypeSelect.value);
-      const res = await fetch(`${API_BASE}/api/prompts${params.toString() ? `?${params}` : ''}`);
-      allPrompts = await res.json();
-      render();
+    async function loadPrompts(force = false){
+      showLoader();
+      try {
+        const params = new URLSearchParams();
+        // Fetch all prompts to ensure analytics and filters are comprehensive
+        const res = await fetch(`${API_BASE}/api/prompts`);
+        if (!res.ok) throw new Error(`API responded with ${res.status}`);
+        allPrompts = await res.json();
+        render();
+      } catch (err) {
+        console.error("Failed to load prompts:", err);
+        listEl.innerHTML = `<p class="muted">Error: Could not load prompts. Please check the connection and refresh.</p>`;
+      } finally {
+        hideLoader();
+      }
     }
 
     async function refreshTaxonomy(){
-      const res = await fetch(`${API_BASE}/api/prompts`);
-      const all = await res.json();
-      const cats = [...new Set(all.map(p => p.service).filter(Boolean))].sort();
-      const currentCat = categorySelect.value;
-
-      categorySelect.innerHTML = `<option value="">All categories</option>` + cats.map(c => {
-        const sel = (c === currentCat) ? ' selected' : '';
-        return `<option${sel} value="${esc(c)}">${esc(c)}</option>`;
-      }).join('');
-
-      const subs = all.filter(p => !currentCat || p.service === currentCat).map(p => p.subtype).filter(Boolean);
-      const uniqueSubs = [...new Set(subs)].sort();
-      subtypeSelect.innerHTML = `<option value="">All subtypes</option>` + uniqueSubs.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
-      subtypeSelect.disabled = uniqueSubs.length === 0;
+        showLoader();
+        try {
+            const res = await fetch(`${API_BASE}/api/prompts`);
+            const all = await res.json();
+            const cats = [...new Set(all.map(p => p.service).filter(Boolean))].sort();
+            const currentCat = categorySelect.value;
+            categorySelect.innerHTML = `<option value="">All categories</option>` + cats.map(c => `<option${(c === currentCat) ? ' selected' : ''} value="${esc(c)}">${esc(c)}</option>`).join('');
+            
+            const subs = all.filter(p => !currentCat || p.service === currentCat).map(p => p.subtype).filter(Boolean);
+            const uniqueSubs = [...new Set(subs)].sort();
+            const currentSub = subtypeSelect.value;
+            subtypeSelect.innerHTML = `<option value="">All subtypes</option>` + uniqueSubs.map(s => `<option${(s === currentSub) ? ' selected' : ''} value="${esc(s)}">${esc(s)}</option>`).join('');
+            subtypeSelect.disabled = uniqueSubs.length === 0;
+        } catch (err) {
+            console.error("Failed to refresh taxonomy:", err);
+        } finally {
+            hideLoader();
+        }
     }
 
     function openView(id){
@@ -242,15 +274,62 @@
       vModal.showModal();
     }
 
+    function exportToCSV() {
+        if (allPrompts.length === 0) {
+            showToast('No prompts to export.');
+            return;
+        }
+        const headers = ['id', 'service', 'subtype', 'description', 'prompt_text', 'ai_tool', 'contributor', 'created_at', 'last_editor', 'last_edited_at', 'copied_count'];
+        const csvRows = [headers.join(',')];
+        for (const p of allPrompts) {
+            const values = headers.map(header => {
+                const val = p[header] === null || p[header] === undefined ? '' : String(p[header]);
+                return `"${val.replace(/"/g, '""')}"`;
+            });
+            csvRows.push(values.join(','));
+        }
+        
+        const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `prompt_hub_export_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showToast('Exported to CSV!');
+    }
+
+    function showAnalytics() {
+        const topCopied = [...allPrompts].sort((a, b) => (b.copied_count || 0) - (a.copied_count || 0)).slice(0, 10);
+        document.getElementById('topCopiedList').innerHTML = topCopied.map(p => `<li><span>${esc(p.description || p.service)}</span><span class="count">${p.copied_count || 0} copies</span></li>`).join('');
+
+        const cold = allPrompts.filter(p => (p.copied_count || 0) === 0);
+        document.getElementById('coldPromptsList').innerHTML = cold.length ? cold.map(p => `<li><span>${esc(p.description || p.service)}</span></li>`).join('') : `<li>All prompts have been used!</li>`;
+        
+        const categoryCounts = allPrompts.reduce((acc, p) => {
+            acc[p.service] = (acc[p.service] || 0) + 1;
+            return acc;
+        }, {});
+        const sortedCategories = Object.entries(categoryCounts).sort(([,a],[,b]) => b-a);
+        document.getElementById('categoryCountList').innerHTML = sortedCategories.map(([cat, count]) => `<li><span>${esc(cat)}</span><span class="count">${count} prompts</span></li>`).join('');
+
+        analyticsModal.showModal();
+    }
+
     // ------- Events -------
     document.getElementById('refreshBtn').onclick = async () => { await refreshTaxonomy(); await loadPrompts(); };
     document.getElementById('addBtn').onclick = () => { editingId = null; form.reset(); modalTitle.textContent = 'Add Prompt'; contribInput.value = 'Tanya'; modal.showModal(); };
+    document.getElementById('exportBtn').onclick = exportToCSV;
+    document.getElementById('analyticsBtn').onclick = showAnalytics;
     document.getElementById('vClose').onclick = () => vModal.close();
+    document.getElementById('analyticsClose').onclick = () => analyticsModal.close();
     document.getElementById('cancelForm').onclick = () => modal.close();
 
     searchBox.oninput = render;
-    categorySelect.onchange = async () => { await refreshTaxonomy(); await loadPrompts(); };
-    subtypeSelect.onchange = loadPrompts;
+    categorySelect.onchange = async () => { await refreshTaxonomy(); render(); };
+    subtypeSelect.onchange = render;
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -266,19 +345,17 @@
         alert('Category, Prompt text, and Contributor are required.');
         return;
       }
-      if (editingId === null) {
-        await fetch(`${API_BASE}/api/prompts`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      } else {
-        await fetch(`${API_BASE}/api/prompts/${editingId}`, {
-          method: 'PUT', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            service: payload.service, subtype: payload.subtype, description: payload.description,
-            ai_tool: payload.ai_tool, prompt_text: payload.prompt_text, editor: payload.contributor || 'Editor'
-          })
-        });
-      }
+      
+      const url = editingId === null ? `${API_BASE}/api/prompts` : `${API_BASE}/api/prompts/${editingId}`;
+      const method = editingId === null ? 'POST' : 'PUT';
+      const body = editingId === null ? payload : { ...payload, editor: payload.contributor || 'Editor' };
+      
+      await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      
       modal.close();
-      await refreshTaxonomy(); await loadPrompts();
+      await refreshTaxonomy();
+      await loadPrompts();
+      showToast(editingId === null ? 'Prompt Added' : 'Prompt Updated');
     });
 
     document.getElementById('vCopy').onclick = async () => {
@@ -286,8 +363,11 @@
       await navigator.clipboard.writeText(viewing.prompt_text || '');
       try { await fetch(`${API_BASE}/api/prompts/${viewing.id}/copied`, { method:'POST' }); } catch {}
       showToast('Copied!');
-      await loadPrompts();
+      const promptInList = allPrompts.find(p => p.id === viewing.id);
+      if(promptInList) promptInList.copied_count = (promptInList.copied_count || 0) + 1;
+      render(); // Re-render to show updated copy count immediately
     };
+
     document.getElementById('vEdit').onclick = () => {
       if(!viewing) return;
       editingId = viewing.id;
@@ -296,22 +376,27 @@
       descInput.value = viewing.description || '';
       toolInput.value = viewing.ai_tool || '';
       textInput.value = viewing.prompt_text || '';
-      contribInput.value = viewing.contributor || 'Tanya';
+      contribInput.value = viewing.contributor || 'Tanya'; // Keeps original contributor during edit
       modalTitle.textContent = 'Edit Prompt';
       vModal.close();
       modal.showModal();
     };
+    
     document.getElementById('vDelete').onclick = async () => {
       if(!viewing) return;
-      if (!confirm('Delete this prompt?')) return;
+      if (!confirm('Are you sure you want to delete this prompt?')) return;
       await fetch(`${API_BASE}/api/prompts/${viewing.id}`, { method:'DELETE' });
       vModal.close();
-      await loadPrompts();
+      await loadPrompts(); // Refresh the whole list from the server
+      await refreshTaxonomy();
       showToast('Deleted');
     };
 
     // Init
-    (async () => { await refreshTaxonomy(); await loadPrompts(); })();
+    (async () => {
+      await refreshTaxonomy();
+      await loadPrompts();
+    })();
   </script>
 </body>
 </html>
