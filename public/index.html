@@ -70,14 +70,14 @@
       </label>
 
       <menu>
-        <!-- IMPORTANT: give Cancel type="button" so it does NOT submit/validate -->
+        <!-- IMPORTANT: type="button" so Cancel doesn't try to submit/validate -->
         <button type="button" id="cancelForm" class="btn">Cancel</button>
         <button id="saveBtn" value="default" class="btn btn-accent">Save</button>
       </menu>
     </form>
   </dialog>
 
-  <!-- VIEW MODAL (popup with actions at top) -->
+  <!-- VIEW MODAL -->
   <dialog id="viewModal">
     <div class="view-head">
       <div class="view-meta">
@@ -100,20 +100,18 @@
   <!-- Toast -->
   <div id="toast" class="toast" hidden>Copied!</div>
 
-  <!-- SheetJS for browser-side Excel build -->
+  <!-- Try to load SheetJS in the page (global XLSX). If it fails, we have a dynamic-import fallback in JS below. -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.19.3/dist/xlsx.full.min.js"></script>
 
   <script>
-    // ====== CONFIG ======
-    // Make sure this is your actual Worker URL:
     const API_BASE = "https://prompt-api.magistralofficialwork.workers.dev";
 
-    // ====== STATE ======
+    // ------- State -------
     let allPrompts = [];
     let editingId = null;
     let viewing = null;
 
-    // ====== ELEMENTS ======
+    // ------- Elements -------
     const listEl = document.getElementById('promptList');
     const searchBox = document.getElementById('searchBox');
     const categorySelect = document.getElementById('categorySelect');
@@ -129,7 +127,6 @@
     const modalTitle = document.getElementById('modalTitle');
     const cancelFormBtn = document.getElementById('cancelForm');
 
-    // View modal elements
     const vModal = document.getElementById('viewModal');
     const vhCat = document.getElementById('vhCat');
     const vhSub = document.getElementById('vhSub');
@@ -144,18 +141,10 @@
 
     const toast = document.getElementById('toast');
 
-    // ====== UTIL ======
-    function showToast(msg) {
-      toast.textContent = msg;
-      toast.hidden = false;
-      setTimeout(() => (toast.hidden = true), 1200);
-    }
+    // ------- Utils -------
+    function showToast(msg) { toast.textContent = msg; toast.hidden = false; setTimeout(()=>toast.hidden=true, 1200); }
     function esc(s){ return (s ?? '').toString().replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) }
-    function parseDbTime(s){
-      if(!s) return null;
-      const iso = s.includes('T') ? s : s.replace(' ', 'T') + 'Z'; // treat as UTC
-      return new Date(iso);
-    }
+    function parseDbTime(s){ if(!s) return null; const iso = s.includes('T') ? s : s.replace(' ','T') + 'Z'; return new Date(iso); }
     function fmtLocal(dt){
       if(!dt) return '';
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -171,8 +160,7 @@
       catch { return `<span class="tool">${esc(text)}</span>`; }
     }
 
-    // ====== RENDERING ======
-    function cardHTML(p) {
+    function cardHTML(p){
       const created = fmtLocal(parseDbTime(p.created_at));
       const edited = p.last_editor ? ` • Edited: ${p.last_editor} (${fmtLocal(parseDbTime(p.last_edited_at))})` : '';
       const copies = (p.copied_count ?? 0) > 0 ? `<span class="mini-chip">${p.copied_count} copies</span>` : '';
@@ -194,9 +182,8 @@
       `;
     }
 
-    function render() {
+    function render(){
       let data = [...allPrompts];
-
       const term = searchBox.value.trim().toLowerCase();
       if (term) {
         data = data.filter(p =>
@@ -208,23 +195,16 @@
           (p.contributor || '').toLowerCase().includes(term)
         );
       }
-
       const cat = (categorySelect.value || '').toLowerCase();
       if (cat) data = data.filter(p => (p.service || '').toLowerCase() === cat);
-
       const sub = (subtypeSelect.value || '').toLowerCase();
       if (sub) data = data.filter(p => (p.subtype || '').toLowerCase() === sub);
 
       listEl.innerHTML = data.length ? data.map(cardHTML).join('') : `<p class="muted">No prompts match your filters.</p>`;
-
-      // Card click opens popup
-      listEl.querySelectorAll('[data-open]').forEach(el => {
-        el.onclick = () => openView(Number(el.getAttribute('data-open')));
-      });
+      listEl.querySelectorAll('[data-open]').forEach(el => el.onclick = () => openView(Number(el.getAttribute('data-open'))));
     }
 
-    // ====== DATA ======
-    async function loadPrompts() {
+    async function loadPrompts(){
       const params = new URLSearchParams();
       if (categorySelect.value) params.set('category', categorySelect.value);
       if (subtypeSelect.value) params.set('subtype', subtypeSelect.value);
@@ -233,7 +213,7 @@
       render();
     }
 
-    async function refreshTaxonomy() {
+    async function refreshTaxonomy(){
       const res = await fetch(`${API_BASE}/api/prompts`);
       const all = await res.json();
       const cats = [...new Set(all.map(p => p.service).filter(Boolean))].sort();
@@ -244,14 +224,12 @@
         return `<option${sel} value="${esc(c)}">${esc(c)}</option>`;
       }).join('');
 
-      const subs = all.filter(p => !currentCat || p.service === currentCat)
-                      .map(p => p.subtype).filter(Boolean);
+      const subs = all.filter(p => !currentCat || p.service === currentCat).map(p => p.subtype).filter(Boolean);
       const uniqueSubs = [...new Set(subs)].sort();
       subtypeSelect.innerHTML = `<option value="">All subtypes</option>` + uniqueSubs.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
       subtypeSelect.disabled = uniqueSubs.length === 0;
     }
 
-    // ====== VIEW MODAL ======
     function openView(id){
       const p = allPrompts.find(x => x.id === id);
       if(!p) return;
@@ -262,9 +240,8 @@
       vhTool.innerHTML = asLinkIfURL(p.ai_tool);
       vhDesc.textContent = p.description || '';
       vhDesc.style.display = p.description ? 'block' : 'none';
-      vhTimes.textContent =
-        `By ${p.contributor} • ${fmtLocal(parseDbTime(p.created_at))}` +
-        (p.last_editor ? ` • Edited: ${p.last_editor} (${fmtLocal(parseDbTime(p.last_edited_at))})` : '');
+      vhTimes.textContent = `By ${p.contributor} • ${fmtLocal(parseDbTime(p.created_at))}` +
+                            (p.last_editor ? ` • Edited: ${p.last_editor} (${fmtLocal(parseDbTime(p.last_edited_at))})` : '');
       vhText.textContent = p.prompt_text || '';
       vModal.showModal();
     }
@@ -273,13 +250,21 @@
       try { await fetch(`${API_BASE}/api/prompts/${id}/copied`, { method:'POST' }); } catch {}
     }
 
-    // ====== EXPORT (BROWSER) ======
+    // Try to obtain XLSX (global or ESM fallback)
+    async function getXLSX(){
+      if (typeof window !== "undefined" && window.XLSX) return window.XLSX;
+      // Fallback to ESM import if global is not available
+      const mod = await import('https://cdn.jsdelivr.net/npm/xlsx@0.19.3/+esm');
+      return mod;
+    }
+
     async function exportToExcel(){
       try{
         const res = await fetch(`${API_BASE}/api/prompts`);
         if(!res.ok) throw new Error(`API ${res.status}`);
         const rows = await res.json();
 
+        // Build data grouped by Category
         const byService = {};
         for (const r of rows) {
           (byService[r.service ?? "Uncategorized"] ??= []).push({
@@ -295,6 +280,9 @@
             "Copied Count": r.copied_count ?? 0
           });
         }
+
+        // Get SheetJS (global or fallback)
+        const XLSX = await getXLSX();
 
         const wb = XLSX.utils.book_new();
         const keys = Object.keys(byService).length ? Object.keys(byService) : ["All Prompts"];
@@ -314,23 +302,48 @@
         a.href = url; a.download = "prompts.xlsx"; a.click();
         URL.revokeObjectURL(url);
       } catch(err){
-        alert("Export failed. Please refresh the page and try again.\nDetails: " + (err?.message || err));
+        // Last-resort CSV fallback so the user still gets a file
+        try{
+          const res = await fetch(`${API_BASE}/api/prompts`);
+          const rows = await res.json();
+          const headers = ["Prompt ID","Prompt Text","Contributor Name","Created Date","Last Edited By","Last Edited Date","Subtype","Description","AI Tool","Copied Count"];
+          const csv = [headers.join(",")].concat(rows.map(r =>
+            [
+              r.id,
+              JSON.stringify(r.prompt_text ?? ""), // quote and escape
+              JSON.stringify(r.contributor ?? ""),
+              r.created_at ?? "",
+              JSON.stringify(r.last_editor ?? ""),
+              r.last_edited_at ?? "",
+              JSON.stringify(r.subtype ?? ""),
+              JSON.stringify(r.description ?? ""),
+              JSON.stringify(r.ai_tool ?? ""),
+              r.copied_count ?? 0
+            ].join(",")
+          )).join("\n");
+          const blob = new Blob([csv], { type:"text/csv;charset=utf-8" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url; a.download = "prompts.csv"; a.click();
+          URL.revokeObjectURL(url);
+          alert("Excel library could not load, so a CSV was downloaded instead.");
+        }catch(e2){
+          alert("Export failed. Please refresh the page and try again.\nDetails: " + (err?.message || err));
+        }
       }
     }
 
-    // ====== EVENTS ======
+    // ------- Events -------
     document.getElementById('refreshBtn').onclick = async () => { await refreshTaxonomy(); await loadPrompts(); };
     document.getElementById('addBtn').onclick = () => { editingId = null; form.reset(); modalTitle.textContent = 'Add Prompt'; contribInput.value = 'Tanya'; modal.showModal(); };
     document.getElementById('exportBtn').onclick = exportToExcel;
     document.getElementById('vClose').onclick = () => vModal.close();
+    document.getElementById('cancelForm').onclick = () => modal.close();
+
     searchBox.oninput = render;
     categorySelect.onchange = async () => { await refreshTaxonomy(); await loadPrompts(); };
     subtypeSelect.onchange = loadPrompts;
 
-    // Close add/edit modal properly
-    cancelFormBtn.onclick = () => modal.close();
-
-    // Add/Edit form
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const payload = {
@@ -360,11 +373,10 @@
       await refreshTaxonomy(); await loadPrompts();
     });
 
-    // View modal actions
     document.getElementById('vCopy').onclick = async () => {
       if(!viewing) return;
       await navigator.clipboard.writeText(viewing.prompt_text || '');
-      await incrementCopy(viewing.id);
+      try { await fetch(`${API_BASE}/api/prompts/${viewing.id}/copied`, { method:'POST' }); } catch {}
       showToast('Copied!');
       await loadPrompts();
     };
