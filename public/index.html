@@ -3,15 +3,17 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Prompt Hub</title>
+  <title>Magistral Prompt Hub</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <!-- HEADER -->
   <header class="site-header">
-    <div class="wrap">
-      <h1>Prompt Hub</h1>
-      <p class="tagline">Store • Edit • Export AI Prompts</p>
+    <div class="wrap head-flex">
+      <div>
+        <h1>Magistral Prompt Hub</h1>
+        <p class="tagline">Store • Edit • Export AI Prompts</p>
+      </div>
     </div>
   </header>
 
@@ -55,8 +57,8 @@
       </label>
 
       <div class="two">
-        <label>AI tool
-          <input id="toolInput" placeholder="ChatGPT, DALL·E, etc.">
+        <label>AI tool (name or URL)
+          <input id="toolInput" placeholder="ChatGPT, DALL·E, or https://...">
         </label>
         <label>Contributor
           <input id="contribInput" value="Tanya" required>
@@ -74,16 +76,36 @@
     </form>
   </dialog>
 
+  <!-- VIEW MODAL (popup with actions at top) -->
+  <dialog id="viewModal">
+    <div class="view-head">
+      <div class="view-meta">
+        <span id="vhCat" class="badge"></span>
+        <span id="vhSub" class="chip"></span>
+        <span id="vhTool" class="tool"></span>
+      </div>
+      <div class="view-actions">
+        <button id="vCopy" class="btn">📋 Copy</button>
+        <button id="vEdit" class="btn">✏️ Edit</button>
+        <button id="vDelete" class="btn btn-danger">🗑️ Delete</button>
+        <button id="vClose" class="btn">✖</button>
+      </div>
+    </div>
+    <div class="view-desc" id="vhDesc"></div>
+    <div class="view-times" id="vhTimes"></div>
+    <pre class="prompt-text" id="vhText"></pre>
+  </dialog>
+
   <!-- Toast -->
   <div id="toast" class="toast" hidden>Copied!</div>
 
   <script>
-    // Your live API
     const API_BASE = "https://prompt-api.magistralofficialwork.workers.dev";
 
     // State
     let allPrompts = [];
     let editingId = null;
+    let viewing = null; // current prompt object in view modal
 
     // Elements
     const listEl = document.getElementById('promptList');
@@ -101,45 +123,50 @@
     const modalTitle = document.getElementById('modalTitle');
     const toast = document.getElementById('toast');
 
+    // View modal elements
+    const vModal = document.getElementById('viewModal');
+    const vhCat = document.getElementById('vhCat');
+    const vhSub = document.getElementById('vhSub');
+    const vhTool = document.getElementById('vhTool');
+    const vhDesc = document.getElementById('vhDesc');
+    const vhTimes = document.getElementById('vhTimes');
+    const vhText = document.getElementById('vhText');
+    const vCopy = document.getElementById('vCopy');
+    const vEdit = document.getElementById('vEdit');
+    const vDelete = document.getElementById('vDelete');
+    const vClose = document.getElementById('vClose');
+
     function showToast(msg) {
       toast.textContent = msg;
       toast.hidden = false;
       setTimeout(() => (toast.hidden = true), 1200);
     }
-
     function esc(s){ return (s ?? '').toString().replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) }
+    function asLinkIfURL(text){
+      if(!text) return '';
+      try { const u = new URL(text); return `<a href="${u.href}" target="_blank" class="tool">${esc(u.hostname)}</a>`; }
+      catch { return `<span class="tool">${esc(text)}</span>`; }
+    }
 
-    // Collapsed item (details/summary)
-    function rowHTML(p) {
+    function cardHTML(p) {
       const created = new Date(p.created_at).toLocaleString();
       const edited = p.last_editor ? ` • Edited: ${p.last_editor} (${new Date(p.last_edited_at).toLocaleString()})` : '';
-      const header = [
-        `<b>${esc(p.service)}</b>`,
-        p.subtype ? `• <span class="chip">${esc(p.subtype)}</span>` : ``,
-        p.description ? `— ${esc(p.description)}` : ``
-      ].join(' ');
-
+      const copies = (p.copied_count ?? 0) > 0 ? `<span class="mini-chip">${p.copied_count} copies</span>` : '';
       return `
-        <details class="row">
-          <summary>
-            <div class="row-summary">
-              <div class="summary-main">${header}</div>
-              <div class="summary-side">
-                <span class="muted">By ${esc(p.contributor)} • ${created}${edited}</span>
-                ${p.ai_tool ? `<span class="tool">${esc(p.ai_tool)}</span>` : ``}
-              </div>
+        <article class="card" data-open="${p.id}">
+          <div class="card-body">
+            <div class="card-line">
+              <span class="badge">${esc(p.service)}</span>
+              ${p.subtype ? `<span class="chip">${esc(p.subtype)}</span>` : ``}
+              ${p.description ? `<span class="desc">${esc(p.description)}</span>` : ``}
             </div>
-          </summary>
-
-          <div class="row-body">
-            <pre class="prompt-text">${esc(p.prompt_text)}</pre>
-            <div class="actions">
-              <button class="btn" data-copy="${p.id}">📋 Copy</button>
-              <button class="btn" data-edit="${p.id}">✏️ Edit</button>
-              <button class="btn btn-danger" data-del="${p.id}">🗑️ Delete</button>
+            <div class="meta">
+              <span>By ${esc(p.contributor)} • ${created}${edited}</span>
+              <span>${asLinkIfURL(p.ai_tool)}</span>
+              ${copies}
             </div>
           </div>
-        </details>
+        </article>
       `;
     }
 
@@ -164,39 +191,11 @@
       const sub = (subtypeSelect.value || '').toLowerCase();
       if (sub) data = data.filter(p => (p.subtype || '').toLowerCase() === sub);
 
-      listEl.innerHTML = data.length ? data.map(rowHTML).join('') : `<p class="muted">No prompts match your filters.</p>`;
+      listEl.innerHTML = data.length ? data.map(cardHTML).join('') : `<p class="muted">No prompts match your filters.</p>`;
 
-      // Wire buttons inside rows
-      listEl.querySelectorAll('[data-copy]').forEach(btn => {
-        btn.onclick = () => {
-          const id = Number(btn.getAttribute('data-copy'));
-          const p = allPrompts.find(x => x.id === id);
-          navigator.clipboard.writeText(p.prompt_text).then(() => showToast('Copied!'));
-        };
-      });
-      listEl.querySelectorAll('[data-edit]').forEach(btn => {
-        btn.onclick = () => {
-          const id = Number(btn.getAttribute('data-edit'));
-          const p = allPrompts.find(x => x.id === id);
-          editingId = id;
-          modalTitle.textContent = 'Edit Prompt';
-          serviceInput.value = p.service || '';
-          subtypeInput.value = p.subtype || '';
-          descInput.value = p.description || '';
-          toolInput.value = p.ai_tool || '';
-          textInput.value = p.prompt_text || '';
-          contribInput.value = p.contributor || 'Tanya';
-          modal.showModal();
-        };
-      });
-      listEl.querySelectorAll('[data-del]').forEach(btn => {
-        btn.onclick = async () => {
-          const id = Number(btn.getAttribute('data-del'));
-          if (!confirm('Delete this prompt?')) return;
-          await fetch(`${API_BASE}/api/prompts/${id}`, { method: 'DELETE' });
-          await loadPrompts();
-          showToast('Deleted');
-        };
+      // Card click opens popup
+      listEl.querySelectorAll('[data-open]').forEach(el => {
+        el.onclick = () => openView(Number(el.getAttribute('data-open')));
       });
     }
 
@@ -210,7 +209,6 @@
     }
 
     async function refreshTaxonomy() {
-      // Build category & subtype dropdowns from current dataset
       const res = await fetch(`${API_BASE}/api/prompts`);
       const all = await res.json();
       const cats = [...new Set(all.map(p => p.service).filter(Boolean))].sort();
@@ -221,12 +219,34 @@
         return `<option${sel} value="${esc(c)}">${esc(c)}</option>`;
       }).join('');
 
-      // Subtypes for selected category
       const subs = all.filter(p => !currentCat || p.service === currentCat)
                       .map(p => p.subtype).filter(Boolean);
       const uniqueSubs = [...new Set(subs)].sort();
       subtypeSelect.innerHTML = `<option value="">All subtypes</option>` + uniqueSubs.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
       subtypeSelect.disabled = uniqueSubs.length === 0;
+    }
+
+    // View modal
+    function openView(id){
+      const p = allPrompts.find(x => x.id === id);
+      if(!p) return;
+      viewing = p;
+      vhCat.textContent = p.service || '';
+      vhSub.textContent = p.subtype || '';
+      vhSub.style.display = p.subtype ? 'inline-block' : 'none';
+      vhTool.innerHTML = asLinkIfURL(p.ai_tool);
+      vhDesc.textContent = p.description || '';
+      vhDesc.style.display = p.description ? 'block' : 'none';
+      const created = new Date(p.created_at).toLocaleString();
+      const edited = p.last_editor ? ` • Edited: ${p.last_editor} (${new Date(p.last_edited_at).toLocaleString()})` : '';
+      vhTimes.textContent = `By ${p.contributor} • ${created}${edited}`;
+      vhText.textContent = p.prompt_text || '';
+      vModal.showModal();
+    }
+
+    async function incrementCopy(id){
+      try { await fetch(`${API_BASE}/api/prompts/${id}/copied`, { method:'POST' }); }
+      catch {}
     }
 
     // Events
@@ -236,8 +256,8 @@
     };
     document.getElementById('addBtn').onclick = () => {
       editingId = null;
-      modalTitle.textContent = 'Add Prompt';
       form.reset();
+      modalTitle.textContent = 'Add Prompt';
       contribInput.value = 'Tanya';
       modal.showModal();
     };
@@ -245,12 +265,10 @@
       window.location.href = `${API_BASE}/api/export`;
     };
     searchBox.oninput = render;
-    categorySelect.onchange = async () => {
-      await refreshTaxonomy();
-      await loadPrompts();
-    };
+    categorySelect.onchange = async () => { await refreshTaxonomy(); await loadPrompts(); };
     subtypeSelect.onchange = loadPrompts;
 
+    // Add/Edit form
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const payload = {
@@ -261,45 +279,58 @@
         prompt_text: textInput.value.trim(),
         contributor: contribInput.value.trim()
       };
-
       if (!payload.service || !payload.prompt_text || !payload.contributor) {
         alert('Category, Prompt text, and Contributor are required.');
         return;
       }
-
       if (editingId === null) {
-        await fetch(`${API_BASE}/api/prompts`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        showToast('Added');
+        await fetch(`${API_BASE}/api/prompts`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       } else {
         await fetch(`${API_BASE}/api/prompts/${editingId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            service: payload.service,
-            subtype: payload.subtype,
-            description: payload.description,
-            ai_tool: payload.ai_tool,
-            prompt_text: payload.prompt_text,
-            editor: payload.contributor || 'Editor'
+            service: payload.service, subtype: payload.subtype, description: payload.description,
+            ai_tool: payload.ai_tool, prompt_text: payload.prompt_text, editor: payload.contributor || 'Editor'
           })
         });
-        showToast('Updated');
       }
-
       modal.close();
-      await refreshTaxonomy();
-      await loadPrompts();
+      await refreshTaxonomy(); await loadPrompts();
     });
 
-    // Init
-    (async () => {
-      await refreshTaxonomy();
+    // View modal actions
+    vCopy.onclick = async () => {
+      if(!viewing) return;
+      await navigator.clipboard.writeText(viewing.prompt_text || '');
+      await incrementCopy(viewing.id);
+      showToast('Copied!');
       await loadPrompts();
-    })();
+    };
+    vEdit.onclick = () => {
+      if(!viewing) return;
+      editingId = viewing.id;
+      serviceInput.value = viewing.service || '';
+      subtypeInput.value = viewing.subtype || '';
+      descInput.value = viewing.description || '';
+      toolInput.value = viewing.ai_tool || '';
+      textInput.value = viewing.prompt_text || '';
+      contribInput.value = viewing.contributor || 'Tanya';
+      modalTitle.textContent = 'Edit Prompt';
+      vModal.close();
+      modal.showModal();
+    };
+    vDelete.onclick = async () => {
+      if(!viewing) return;
+      if (!confirm('Delete this prompt?')) return;
+      await fetch(`${API_BASE}/api/prompts/${viewing.id}`, { method:'DELETE' });
+      vModal.close();
+      await loadPrompts();
+      showToast('Deleted');
+    };
+    vClose.onclick = () => vModal.close();
+
+    // Init
+    (async () => { await refreshTaxonomy(); await loadPrompts(); })();
   </script>
 </body>
 </html>
