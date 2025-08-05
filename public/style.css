@@ -221,3 +221,42 @@ menu { display: flex; gap: 8px; justify-content: flex-end; margin: 24px 0 0 0; p
   .prompt-text { font-size: 13px; }
   .toast { bottom: 12px; }
 }
+
+/* ---- Pagination (clean + compact) ---- */
+.pager {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 0 24px;
+}
+.pager .btn-page {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: #fff;
+  color: #111827;
+  cursor: pointer;
+  font-size: 14px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.04);
+}
+.pager .btn-page:hover { background: #f9fafb; }
+.pager .active {
+  background: var(--brand-accent);
+  color: #fff;
+  border-color: #f97316;
+}
+.pager .gap {
+  padding: 0 6px;
+  color: var(--muted);
+  user-select: none;
+}
+@media (max-width: 480px) {
+  .pager { gap: 4px; }
+  .pager .btn-page { min-width: 32px; height: 32px; border-radius: 6px; }
+}
