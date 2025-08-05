@@ -16,7 +16,6 @@
         <svg viewBox="0 0 1024 1024" fill="currentColor"><path d="M928 160H96c-17.7 0-32 14.3-32 32v640c0 17.7 14.3 32 32 32h832c17.7 0 32-14.3 32-32V192c0-17.7-14.3-32-32-32zm-40 632H136V232h752v560zM224 336c0-4.4-3.6-8-8-8h-48c-4.4 0-8 3.6-8 8v48c0 4.4 3.6 8 8 8h48c4.4 0 8-3.6 8-8v-48zm224 0c0-4.4-3.6-8-8-8H272c-4.4 0-8 3.6-8 8v48c0 4.4 3.6 8 8 8h160c4.4 0 8-3.6 8-8v-48zm224 0c0-4.4-3.6-8-8-8H528c-4.4 0-8 3.6-8 8v48c0 4.4 3.6 8 8 8h112c4.4 0 8-3.6 8-8v-48zM224 496c0-4.4-3.6-8-8-8h-48c-4.4 0-8 3.6-8 8v48c0 4.4 3.6 8 8 8h48c4.4 0 8-3.6 8-8v-48zm224 0c0-4.4-3.6-8-8-8H272c-4.4 0-8 3.6-8 8v48c0 4.4 3.6 8 8 8h160c4.4 0 8-3.6 8-8v-48zm224 0c0-4.4-3.6-8-8-8H528c-4.4 0-8 3.6-8 8v48c0 4.4 3.6 8 8 8h112c4.4 0 8-3.6 8-8v-48z"></path></svg>
         <div>
           <h1>Magistral Prompt Hub</h1>
-          <!-- Tagline: removed “Analyze AI Prompts” -->
           <p class="tagline">Store • Edit</p>
         </div>
       </a>
@@ -52,14 +51,16 @@
   </div>
 
   <main class="wrap">
-    <!-- Loader: no “hidden” attribute; visibility controlled by .show class -->
     <div id="loader" class="loader">
       <div class="loader-spinner"></div>
       Loading Prompts...
     </div>
     <section id="promptList" class="grid"></section>
+    <!-- NEW: pagination -->
+    <nav id="pager" class="pager"></nav>
   </main>
 
+  <!-- Add/Edit Modal -->
   <dialog id="promptModal">
     <form id="promptForm" method="dialog">
       <h3 id="modalTitle">Add Prompt</h3>
@@ -80,6 +81,7 @@
     </form>
   </dialog>
 
+  <!-- View Modal -->
   <dialog id="viewModal">
     <div class="view-head">
       <div class="view-meta">
@@ -88,10 +90,10 @@
         <span id="vhTool" class="tool"></span>
       </div>
       <div class="view-actions">
-        <button id="vCopy" class="btn"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg> Copy</button>
-        <button id="vEdit" class="btn"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z"></path></svg> Edit</button>
-        <button id="vDelete" class="btn btn-danger"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> Delete</button>
-        <button id="vClose" class="btn"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+        <button id="vCopy" class="btn">📋 Copy</button>
+        <button id="vEdit" class="btn">✏️ Edit</button>
+        <button id="vDelete" class="btn btn-danger">🗑️ Delete</button>
+        <button id="vClose" class="btn">✖</button>
       </div>
     </div>
     <article>
@@ -101,10 +103,11 @@
     </article>
   </dialog>
   
+  <!-- Analytics Modal -->
   <dialog id="analyticsModal">
       <div class="view-head">
         <h3>Usage Analytics</h3>
-        <button id="analyticsClose" class="btn"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+        <button id="analyticsClose" class="btn">✖</button>
       </div>
       <div class="analytics-content">
         <div class="analytics-grid">
@@ -125,265 +128,318 @@
   </dialog>
 
   <div id="toast" class="toast" hidden>Copied!</div>
+
   <script>
-  const API_BASE = "https://prompt-api.magistralofficialwork.workers.dev";
+    const API_BASE = "https://prompt-api.magistralofficialwork.workers.dev";
 
-  // ------- State -------
-  let allPrompts = [];
-  let editingId = null;
-  let viewing = null;             // <— keep the currently opened prompt here
+    // ------- State -------
+    let allPrompts = [];
+    let editingId = null;
+    let viewing = null;
 
-  // ------- Elements -------
-  const loader = document.getElementById('loader');
-  const listEl = document.getElementById('promptList');
-  const searchBox = document.getElementById('searchBox');
-  const categorySelect = document.getElementById('categorySelect');
-  const subtypeSelect = document.getElementById('subtypeSelect');
-  const modal = document.getElementById('promptModal');
-  const form = document.getElementById('promptForm');
-  const serviceInput = document.getElementById('serviceInput');
-  const subtypeInput = document.getElementById('subtypeInput');
-  const descInput = document.getElementById('descInput');
-  const toolInput = document.getElementById('toolInput');
-  const textInput = document.getElementById('textInput');
-  const contribInput = document.getElementById('contribInput');
-  const modalTitle = document.getElementById('modalTitle');
+    // pagination state
+    let currentPage = 1;
+    const PAGE_SIZE = 8; // change if you want fewer/more items per page
 
-  const vModal = document.getElementById('viewModal');
-  const vhCat = document.getElementById('vhCat');
-  const vhSub = document.getElementById('vhSub');
-  const vhTool = document.getElementById('vhTool');
-  const vhDesc = document.getElementById('vhDesc');
-  const vhTimes = document.getElementById('vhTimes');
-  const vhText = document.getElementById('vhText');
+    // ------- Elements -------
+    const loader = document.getElementById('loader');
+    const listEl = document.getElementById('promptList');
+    const pagerEl = document.getElementById('pager');
+    const searchBox = document.getElementById('searchBox');
+    const categorySelect = document.getElementById('categorySelect');
+    const subtypeSelect = document.getElementById('subtypeSelect');
+    const modal = document.getElementById('promptModal');
+    const form = document.getElementById('promptForm');
+    const serviceInput = document.getElementById('serviceInput');
+    const subtypeInput = document.getElementById('subtypeInput');
+    const descInput = document.getElementById('descInput');
+    const toolInput = document.getElementById('toolInput');
+    const textInput = document.getElementById('textInput');
+    const contribInput = document.getElementById('contribInput');
+    const modalTitle = document.getElementById('modalTitle');
 
-  const analyticsModal = document.getElementById('analyticsModal');
-  const toast = document.getElementById('toast');
+    const vModal = document.getElementById('viewModal');
+    const vhCat = document.getElementById('vhCat');
+    const vhSub = document.getElementById('vhSub');
+    const vhTool = document.getElementById('vhTool');
+    const vhDesc = document.getElementById('vhDesc');
+    const vhTimes = document.getElementById('vhTimes');
+    const vhText = document.getElementById('vhText');
 
-  // ------- Utils -------
-  function showLoader() { loader.classList.add('show'); listEl.style.opacity = '0.4'; }
-  function hideLoader() { loader.classList.remove('show'); listEl.style.opacity = '1'; }
-  function showToast(msg) { toast.textContent = msg; toast.hidden = false; setTimeout(()=>toast.hidden=true, 1500); }
-  function esc(s){ return (s ?? '').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])) }
-  function parseDbTime(s){ if(!s) return null; const iso = s.includes('T') ? s : s.replace(' ','T') + 'Z'; return new Date(iso); }
-  function fmtLocal(dt){ if(!dt) return ''; return new Intl.DateTimeFormat(undefined, { dateStyle: 'short', timeStyle: 'short' }).format(dt); }
-  function asLinkIfURL(text){
-    if(!text) return '';
-    try { const u = new URL(text); return `<a href="${u.href}" target="_blank" rel="noopener noreferrer" class="tool">${esc(u.hostname)}</a>`; }
-    catch { return `<span class="tool">${esc(text)}</span>`; }
-  }
+    const analyticsModal = document.getElementById('analyticsModal');
+    const toast = document.getElementById('toast');
 
-  function cardHTML(p){
-    const created = fmtLocal(parseDbTime(p.created_at));
-    const edited = p.last_editor ? ` • Edited: ${p.last_editor} (${fmtLocal(parseDbTime(p.last_edited_at))})` : '';
-    const copies = (p.copied_count ?? 0) > 0 ? `<span class="mini-chip">Copied ${p.copied_count} times</span>` : '';
-    return `
-      <article class="card" data-open="${p.id}">
-        <div class="card-body">
-          <div class="card-line">
-            <span class="badge">${esc(p.service)}</span>
-            ${p.subtype ? `<span class="chip">${esc(p.subtype)}</span>` : ``}
+    // ------- Utils -------
+    function showLoader() { loader.classList.add('show'); listEl.style.opacity = '0.4'; }
+    function hideLoader() { loader.classList.remove('show'); listEl.style.opacity = '1'; }
+    function showToast(msg) { toast.textContent = msg; toast.hidden = false; setTimeout(()=>toast.hidden=true, 1500); }
+    function esc(s){ return (s ?? '').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])) }
+    function parseDbTime(s){ if(!s) return null; const iso = s.includes('T') ? s : s.replace(' ','T') + 'Z'; return new Date(iso); }
+    function fmtLocal(dt){ if(!dt) return ''; return new Intl.DateTimeFormat(undefined, { dateStyle: 'short', timeStyle: 'short' }).format(dt); }
+    function asLinkIfURL(text){
+      if(!text) return '';
+      try { const u = new URL(text); return `<a href="${u.href}" target="_blank" rel="noopener noreferrer" class="tool">${esc(u.hostname)}</a>`; }
+      catch { return `<span class="tool">${esc(text)}</span>`; }
+    }
+
+    function cardHTML(p){
+      const created = fmtLocal(parseDbTime(p.created_at));
+      const edited = p.last_editor ? ` • Edited: ${p.last_editor} (${fmtLocal(parseDbTime(p.last_edited_at))})` : '';
+      const copies = (p.copied_count ?? 0) > 0 ? `<span class="mini-chip">Copied ${p.copied_count} times</span>` : '';
+      return `
+        <article class="card" data-open="${p.id}">
+          <div class="card-body">
+            <div class="card-line">
+              <span class="badge">${esc(p.service)}</span>
+              ${p.subtype ? `<span class="chip">${esc(p.subtype)}</span>` : ``}
+            </div>
+            ${p.description ? `<p class="desc">${esc(p.description)}</p>` : ``}
+            <div class="meta">
+              <span>By ${esc(p.contributor)} • ${created}${edited}</span>
+              ${asLinkIfURL(p.ai_tool)}
+              ${copies}
+            </div>
           </div>
-          ${p.description ? `<p class="desc">${esc(p.description)}</p>` : ``}
-          <div class="meta">
-            <span>By ${esc(p.contributor)} • ${created}${edited}</span>
-            ${asLinkIfURL(p.ai_tool)}
-            ${copies}
-          </div>
-        </div>
-      </article>
-    `;
-  }
-
-  function render(){
-    let data = [...allPrompts];
-    const term = searchBox.value.trim().toLowerCase();
-    if (term) data = data.filter(p => Object.values(p).some(val => String(val).toLowerCase().includes(term)));
-    const cat = (categorySelect.value || '').toLowerCase();
-    if (cat) data = data.filter(p => (p.service || '').toLowerCase() === cat);
-    const sub = (subtypeSelect.value || '').toLowerCase();
-    if (sub) data = data.filter(p => (p.subtype || '').toLowerCase() === sub);
-
-    listEl.innerHTML = data.length ? data.map(cardHTML).join('') : `<p class="muted">No prompts match your filters.</p>`;
-    listEl.querySelectorAll('[data-open]').forEach(el => el.onclick = () => openView(Number(el.getAttribute('data-open'))));
-  }
-
-  async function loadPrompts(){
-    showLoader();
-    try {
-      const res = await fetch(`${API_BASE}/api/prompts`);
-      if (!res.ok) throw new Error(`API responded with ${res.status}`);
-      allPrompts = await res.json();
-      render();
-    } catch (err) {
-      console.error("Failed to load prompts:", err);
-      listEl.innerHTML = `<p class="muted">Error: Could not load prompts. Please refresh.</p>`;
-    } finally {
-      hideLoader();
+        </article>
+      `;
     }
-  }
 
-  async function refreshTaxonomy(){
-    showLoader();
-    try {
-      const res = await fetch(`${API_BASE}/api/prompts`);
-      const all = await res.json();
-      const cats = [...new Set(all.map(p => p.service).filter(Boolean))].sort();
-      const currentCat = categorySelect.value;
-      categorySelect.innerHTML = `<option value="">All categories</option>` + cats.map(c => `<option${(c === currentCat) ? ' selected' : ''} value="${esc(c)}">${esc(c)}</option>`).join('');
+    // Build pager UI with numbers + ellipses
+    function renderPager(totalPages){
+      const btn = (label, page, disabled=false, active=false) =>
+        `<button class="btn-page${active ? ' active':''}" ${disabled ? 'disabled':''} data-page="${page}">${label}</button>`;
+      const gap = `<span class="gap">…</span>`;
+      let html = '';
+      if (totalPages <= 1) { pagerEl.innerHTML = ''; return; }
 
-      const subs = all.filter(p => !currentCat || p.service === currentCat).map(p => p.subtype).filter(Boolean);
-      const uniqueSubs = [...new Set(subs)].sort();
-      const currentSub = subtypeSelect.value;
-      subtypeSelect.innerHTML = `<option value="">All subtypes</option>` + uniqueSubs.map(s => `<option${(s === currentSub) ? ' selected' : ''} value="${esc(s)}">${esc(s)}</option>`).join('');
-      subtypeSelect.disabled = uniqueSubs.length === 0;
-    } catch (err) {
-      console.error("Failed to refresh taxonomy:", err);
-    } finally {
-      hideLoader();
+      // Prev
+      html += btn('«', Math.max(1, currentPage - 1), currentPage === 1);
+
+      const pages = [];
+      // Always show 1 and last, around current show neighbors
+      const add = p => { if (p>=1 && p<=totalPages && !pages.includes(p)) pages.push(p); };
+      add(1); add(totalPages);
+      for (let p=currentPage-1; p<=currentPage+1; p++) add(p);
+      for (let p=2; p<=3; p++) add(p);
+      for (let p=totalPages-2; p<=totalPages-1; p++) add(p);
+      pages.sort((a,b)=>a-b);
+
+      pages.forEach((p,i)=>{
+        if (i>0 && pages[i-1] !== p-1) html += gap;
+        html += btn(p, p, false, p===currentPage);
+      });
+
+      // Next
+      html += btn('»', Math.min(totalPages, currentPage + 1), currentPage === totalPages);
+
+      pagerEl.innerHTML = html;
+      pagerEl.querySelectorAll('[data-page]').forEach(b=>{
+        b.onclick = () => { const go = Number(b.getAttribute('data-page')); if (go && go!==currentPage){ currentPage=go; render(); } };
+      });
     }
-  }
 
-  // ---- FIX: set global `viewing` here so Edit/Delete know the current item ----
-  function openView(id){
-    const p = allPrompts.find(x => x.id === id);
-    if(!p) return;
-    viewing = p;                       // <— CRITICAL LINE (was missing)
-    vhCat.textContent = p.service || '';
-    vhSub.textContent = p.subtype || '';
-    vhSub.style.display = p.subtype ? 'inline-block' : 'none';
-    vhTool.innerHTML = asLinkIfURL(p.ai_tool);
-    vhDesc.textContent = p.description || '';
-    vhDesc.style.display = p.description ? 'block' : 'none';
-    vhTimes.textContent =
-      `By ${p.contributor} • ${fmtLocal(parseDbTime(p.created_at))}` +
-      (p.last_editor ? ` • Edited: ${p.last_editor} (${fmtLocal(parseDbTime(p.last_edited_at))})` : '');
-    vhText.textContent = p.prompt_text || '';
-    vModal.showModal();
-  }
-
-  // ------- CSV Export (unchanged visuals) -------
-  function exportToCSV() {
-    if (allPrompts.length === 0) { showToast('No prompts to export.'); return; }
-    const headers = ['id','service','subtype','description','prompt_text','ai_tool','contributor','created_at','last_editor','last_edited_at','copied_count'];
-    const csvRows = [headers.join(',')];
-    for (const p of allPrompts) {
-      const values = headers.map(h => `"${String(p[h] ?? '').replace(/"/g,'""')}"`);
-      csvRows.push(values.join(','));
+    function getFilteredData(){
+      let data = [...allPrompts];
+      const term = searchBox.value.trim().toLowerCase();
+      if (term) data = data.filter(p => Object.values(p).some(val => String(val).toLowerCase().includes(term)));
+      const cat = (categorySelect.value || '').toLowerCase();
+      if (cat) data = data.filter(p => (p.service || '').toLowerCase() === cat);
+      const sub = (subtypeSelect.value || '').toLowerCase();
+      if (sub) data = data.filter(p => (p.subtype || '').toLowerCase() === sub);
+      return data;
     }
-    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `prompt_hub_export_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
-    URL.revokeObjectURL(link.href);
-    showToast('Exported to CSV!');
-  }
 
-  function showAnalytics() {
-    const topCopied = [...allPrompts].sort((a,b)=>(b.copied_count||0)-(a.copied_count||0)).slice(0,10);
-    document.getElementById('topCopiedList').innerHTML =
-      topCopied.map(p => `<li><span>${esc(p.description || p.service)}</span><span class="count">${p.copied_count || 0} copies</span></li>`).join('');
+    function render(){
+      const data = getFilteredData();
+      const totalPages = Math.max(1, Math.ceil(data.length / PAGE_SIZE));
+      if (currentPage > totalPages) currentPage = totalPages;
 
-    const cold = allPrompts.filter(p => (p.copied_count || 0) === 0);
-    document.getElementById('coldPromptsList').innerHTML =
-      cold.length ? cold.map(p => `<li><span>${esc(p.description || p.service)}</span></li>`).join('') : `<li>All prompts have been used!</li>`;
+      const start = (currentPage - 1) * PAGE_SIZE;
+      const pageItems = data.slice(start, start + PAGE_SIZE);
 
-    const categoryCounts = allPrompts.reduce((acc,p)=>{ acc[p.service]= (acc[p.service]||0)+1; return acc; },{});
-    const sorted = Object.entries(categoryCounts).sort(([,a],[,b])=>b-a);
-    document.getElementById('categoryCountList').innerHTML =
-      sorted.map(([cat,count]) => `<li><span>${esc(cat)}</span><span class="count">${count} prompts</span></li>`).join('');
+      listEl.innerHTML = pageItems.length ? pageItems.map(cardHTML).join('') : `<p class="muted">No prompts match your filters.</p>`;
+      listEl.querySelectorAll('[data-open]').forEach(el => el.onclick = () => openView(Number(el.getAttribute('data-open'))));
+      renderPager(totalPages);
+    }
 
-    analyticsModal.showModal();
-  }
+    async function loadPrompts(){
+      showLoader();
+      try {
+        const res = await fetch(`${API_BASE}/api/prompts`);
+        if (!res.ok) throw new Error(`API responded with ${res.status}`);
+        allPrompts = await res.json();
+        render();
+      } catch (err) {
+        console.error("Failed to load prompts:", err);
+        listEl.innerHTML = `<p class="muted">Error: Could not load prompts. Please refresh.</p>`;
+        pagerEl.innerHTML = '';
+      } finally {
+        hideLoader();
+      }
+    }
 
-  // ------- Events -------
-  document.getElementById('refreshBtn').onclick = async () => { await refreshTaxonomy(); await loadPrompts(); };
-  document.getElementById('addBtn').onclick = () => {
-    editingId = null; form.reset();
-    modalTitle.textContent = 'Add Prompt';
-    contribInput.value = 'Tanya';
-    modal.showModal();
-  };
-  document.getElementById('exportBtn').onclick = exportToCSV;
-  document.getElementById('analyticsBtn').onclick = showAnalytics;
-  document.getElementById('vClose').onclick = () => { vModal.close(); viewing = null; };
-  document.getElementById('analyticsClose').onclick = () => analyticsModal.close();
-  document.getElementById('cancelForm').onclick = () => modal.close();
+    async function refreshTaxonomy(){
+      showLoader();
+      try {
+        const res = await fetch(`${API_BASE}/api/prompts`);
+        const all = await res.json();
+        const cats = [...new Set(all.map(p => p.service).filter(Boolean))].sort();
+        const currentCat = categorySelect.value;
+        categorySelect.innerHTML = `<option value="">All categories</option>` + cats.map(c => `<option${(c === currentCat) ? ' selected' : ''} value="${esc(c)}">${esc(c)}</option>`).join('');
 
-  searchBox.oninput = render;
-  categorySelect.onchange = async () => { await refreshTaxonomy(); render(); };
-  subtypeSelect.onchange = render;
+        const subs = all.filter(p => !currentCat || p.service === currentCat).map(p => p.subtype).filter(Boolean);
+        const uniqueSubs = [...new Set(subs)].sort();
+        const currentSub = subtypeSelect.value;
+        subtypeSelect.innerHTML = `<option value="">All subtypes</option>` + uniqueSubs.map(s => `<option${(s === currentSub) ? ' selected' : ''} value="${esc(s)}">${esc(s)}</option>`).join('');
+        subtypeSelect.disabled = uniqueSubs.length === 0;
+      } catch (err) {
+        console.error("Failed to refresh taxonomy:", err);
+      } finally {
+        hideLoader();
+      }
+    }
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const payload = {
-      service: serviceInput.value.trim(),
-      subtype: subtypeInput.value.trim() || null,
-      description: descInput.value.trim() || null,
-      ai_tool: toolInput.value.trim() || null,
-      prompt_text: textInput.value.trim(),
-      contributor: contribInput.value.trim()
+    function openView(id){
+      const p = allPrompts.find(x => x.id === id);
+      if(!p) return;
+      viewing = p;
+      vhCat.textContent = p.service || '';
+      vhSub.textContent = p.subtype || '';
+      vhSub.style.display = p.subtype ? 'inline-block' : 'none';
+      vhTool.innerHTML = asLinkIfURL(p.ai_tool);
+      vhDesc.textContent = p.description || '';
+      vhDesc.style.display = p.description ? 'block' : 'none';
+      vhTimes.textContent = `By ${p.contributor} • ${fmtLocal(parseDbTime(p.created_at))}` +
+                            (p.last_editor ? ` • Edited: ${p.last_editor} (${fmtLocal(parseDbTime(p.last_edited_at))})` : '');
+      vhText.textContent = p.prompt_text || '';
+      vModal.showModal();
+    }
+
+    function exportToCSV() {
+      if (allPrompts.length === 0) { showToast('No prompts to export.'); return; }
+      const headers = ['id','service','subtype','description','prompt_text','ai_tool','contributor','created_at','last_editor','last_edited_at','copied_count'];
+      const csvRows = [headers.join(',')];
+      for (const p of allPrompts) {
+        const values = headers.map(h => `"${String(p[h] ?? '').replace(/"/g,'""')}"`);
+        csvRows.push(values.join(','));
+      }
+      const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `prompt_hub_export_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+      showToast('Exported to CSV!');
+    }
+
+    function showAnalytics() {
+      // TOP 3 only
+      const topCopied = [...allPrompts]
+        .sort((a,b)=>(b.copied_count||0)-(a.copied_count||0))
+        .slice(0, 3);
+
+      document.getElementById('topCopiedList').innerHTML =
+        topCopied.length
+          ? topCopied.map(p => `<li><span>${esc(p.description || p.service)}</span><span class="count">${p.copied_count || 0} copies</span></li>`).join('')
+          : `<li>No copies yet.</li>`;
+
+      const cold = allPrompts.filter(p => (p.copied_count || 0) === 0).slice(0, 10);
+      document.getElementById('coldPromptsList').innerHTML =
+        cold.length ? cold.map(p => `<li><span>${esc(p.description || p.service)}</span></li>`).join('') : `<li>All prompts have been used!</li>`;
+
+      const categoryCounts = allPrompts.reduce((acc,p)=>{ acc[p.service]= (acc[p.service]||0)+1; return acc; },{});
+      const sorted = Object.entries(categoryCounts).sort(([,a],[,b])=>b-a);
+      document.getElementById('categoryCountList').innerHTML =
+        sorted.map(([cat,count]) => `<li><span>${esc(cat)}</span><span class="count">${count} prompts</span></li>`).join('');
+
+      analyticsModal.showModal();
+    }
+
+    // ------- Events -------
+    document.getElementById('refreshBtn').onclick = async () => { await refreshTaxonomy(); await loadPrompts(); };
+    document.getElementById('addBtn').onclick = () => {
+      editingId = null; form.reset();
+      modalTitle.textContent = 'Add Prompt';
+      contribInput.value = 'Tanya';
+      modal.showModal();
     };
-    if (!payload.service || !payload.prompt_text || !payload.contributor) {
-      alert('Category, Prompt text, and Contributor are required.');
-      return;
-    }
+    document.getElementById('exportBtn').onclick = exportToCSV;
+    document.getElementById('analyticsBtn').onclick = showAnalytics;
+    document.getElementById('vClose').onclick = () => { vModal.close(); viewing = null; };
+    document.getElementById('analyticsClose').onclick = () => analyticsModal.close();
+    document.getElementById('cancelForm').onclick = () => modal.close();
 
-    const url = (editingId === null) ? `${API_BASE}/api/prompts` : `${API_BASE}/api/prompts/${editingId}`;
-    const method = (editingId === null) ? 'POST' : 'PUT';
-    const body = (editingId === null) ? payload : { ...payload, editor: payload.contributor || 'Editor' };
-    await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    // reset to page 1 whenever filters/search change
+    searchBox.oninput = () => { currentPage = 1; render(); };
+    categorySelect.onchange = async () => { currentPage = 1; await refreshTaxonomy(); render(); };
+    subtypeSelect.onchange = () => { currentPage = 1; render(); };
 
-    modal.close();
-    editingId = null;               // reset edit mode
-    await refreshTaxonomy();
-    await loadPrompts();
-    showToast('Saved');
-  });
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = {
+        service: serviceInput.value.trim(),
+        subtype: subtypeInput.value.trim() || null,
+        description: descInput.value.trim() || null,
+        ai_tool: toolInput.value.trim() || null,
+        prompt_text: textInput.value.trim(),
+        contributor: contribInput.value.trim()
+      };
+      if (!payload.service || !payload.prompt_text || !payload.contributor) {
+        alert('Category, Prompt text, and Contributor are required.');
+        return;
+      }
+      const url = (editingId === null) ? `${API_BASE}/api/prompts` : `${API_BASE}/api/prompts/${editingId}`;
+      const method = (editingId === null) ? 'POST' : 'PUT';
+      const body = (editingId === null) ? payload : { ...payload, editor: payload.contributor || 'Editor' };
+      await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 
-  // ---- Use the global `viewing` for these actions ----
-  document.getElementById('vCopy').onclick = async () => {
-    if(!viewing) return;
-    await navigator.clipboard.writeText(viewing.prompt_text || '');
-    try { await fetch(`${API_BASE}/api/prompts/${viewing.id}/copied`, { method:'POST' }); } catch {}
-    showToast('Copied!');
-    // reflect count immediately in list
-    const inList = allPrompts.find(p => p.id === viewing.id);
-    if (inList) inList.copied_count = (inList.copied_count || 0) + 1;
-    render();
-  };
+      modal.close();
+      editingId = null;
+      await refreshTaxonomy();
+      await loadPrompts();
+      showToast('Saved');
+    });
 
-  document.getElementById('vEdit').onclick = () => {
-    if(!viewing) return;
-    editingId = viewing.id;
-    serviceInput.value = viewing.service || '';
-    subtypeInput.value = viewing.subtype || '';
-    descInput.value = viewing.description || '';
-    toolInput.value = viewing.ai_tool || '';
-    textInput.value = viewing.prompt_text || '';
-    contribInput.value = viewing.contributor || 'Tanya';
-    modalTitle.textContent = 'Edit Prompt';
-    vModal.close();
-    modal.showModal();
-  };
+    document.getElementById('vCopy').onclick = async () => {
+      if(!viewing) return;
+      await navigator.clipboard.writeText(viewing.prompt_text || '');
+      try { await fetch(`${API_BASE}/api/prompts/${viewing.id}/copied`, { method:'POST' }); } catch {}
+      showToast('Copied!');
+      const inList = allPrompts.find(p => p.id === viewing.id);
+      if (inList) inList.copied_count = (inList.copied_count || 0) + 1;
+      render();
+    };
 
-  document.getElementById('vDelete').onclick = async () => {
-    if(!viewing) return;
-    if (!confirm('Are you sure you want to delete this prompt?')) return;
-    await fetch(`${API_BASE}/api/prompts/${viewing.id}`, { method:'DELETE' });
-    vModal.close();
-    viewing = null;
-    await refreshTaxonomy();
-    await loadPrompts();
-    showToast('Deleted');
-  };
+    document.getElementById('vEdit').onclick = () => {
+      if(!viewing) return;
+      editingId = viewing.id;
+      serviceInput.value = viewing.service || '';
+      subtypeInput.value = viewing.subtype || '';
+      descInput.value = viewing.description || '';
+      toolInput.value = viewing.ai_tool || '';
+      textInput.value = viewing.prompt_text || '';
+      contribInput.value = viewing.contributor || 'Tanya';
+      modalTitle.textContent = 'Edit Prompt';
+      vModal.close();
+      modal.showModal();
+    };
 
-  // Init
-  (async () => {
-    await refreshTaxonomy();
-    await loadPrompts();
-  })();
-</script>
+    document.getElementById('vDelete').onclick = async () => {
+      if(!viewing) return;
+      if (!confirm('Are you sure you want to delete this prompt?')) return;
+      await fetch(`${API_BASE}/api/prompts/${viewing.id}`, { method:'DELETE' });
+      vModal.close();
+      viewing = null;
+      await refreshTaxonomy();
+      await loadPrompts();
+      showToast('Deleted');
+    };
+
+    // Init
+    (async () => {
+      await refreshTaxonomy();
+      await loadPrompts();
+    })();
+  </script>
 </body>
 </html>
