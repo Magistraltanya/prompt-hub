@@ -28,6 +28,12 @@
         <input id="searchBox" placeholder="Search text...">
         <select id="categorySelect"><option value="">All categories</option></select>
         <select id="subtypeSelect" disabled><option value="">All subtypes</option></select>
+        <select id="sortSelect">
+            <option value="newest">Sort by: Newest</option>
+            <option value="oldest">Sort by: Oldest</option>
+            <option value="copied">Sort by: Most Copied</option>
+            <option value="alphabetical">Sort by: Alphabetical</option>
+        </select>
         <button id="refreshBtn" class="btn">
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M4 4l1.5 1.5A9 9 0 0120.5 15M20 20l-1.5-1.5A9 9 0 013.5 9"></path></svg>
           Refresh
@@ -56,11 +62,9 @@
       Loading Prompts...
     </div>
     <section id="promptList" class="grid"></section>
-    <!-- NEW: pagination -->
     <nav id="pager" class="pager"></nav>
   </main>
 
-  <!-- Add/Edit Modal -->
   <dialog id="promptModal">
     <form id="promptForm" method="dialog">
       <h3 id="modalTitle">Add Prompt</h3>
@@ -74,6 +78,9 @@
         <label>Contributor<input id="contribInput" value="Tanya" required></label>
       </div>
       <label>Prompt (full text)<textarea id="textInput" required></textarea></label>
+      <label>Usage Guidelines (Optional)
+        <textarea id="guidelinesInput" placeholder="e.g., 'Use with GPT-4 for best results. Ensure all 3 placeholders are replaced.'"></textarea>
+      </label>
       <menu>
         <button type="button" id="cancelForm" class="btn">Cancel</button>
         <button id="saveBtn" value="default" class="btn btn-accent">Save</button>
@@ -81,7 +88,6 @@
     </form>
   </dialog>
 
-  <!-- View Modal -->
   <dialog id="viewModal">
     <div class="view-head">
       <div class="view-meta">
@@ -96,14 +102,36 @@
         <button id="vClose" class="btn">✖</button>
       </div>
     </div>
-    <article>
-        <div class="view-desc" id="vhDesc"></div>
-        <div class="view-times" id="vhTimes"></div>
-        <pre class="prompt-text" id="vhText"></pre>
-    </article>
+    <div class="view-body">
+        <div class="view-main-content">
+            <div class="view-section">
+                <h4>Description</h4>
+                <p id="vhDesc"></p>
+            </div>
+            <div id="guidelinesSection" class="view-section" style="display: none;">
+                <h4>Usage Guidelines</h4>
+                <div class="guidelines" id="vhGuidelines"></div>
+            </div>
+            <div class="view-section">
+                <h4>Prompt Text</h4>
+                <pre class="prompt-text" id="vhText"></pre>
+            </div>
+        </div>
+        <div class="view-sidebar">
+            <div class="view-section">
+                <h4>Details</h4>
+                <ul class="details-list">
+                    <li id="detailContrib"><strong>Contributor:</strong> <span></span></li>
+                    <li id="detailCreated"><strong>Created:</strong> <span></span></li>
+                    <li id="detailEditor" style="display: none;"><strong>Last Editor:</strong> <span></span></li>
+                    <li id="detailEdited" style="display: none;"><strong>Last Edited:</strong> <span></span></li>
+                    <li id="detailCopied"><strong>Copied:</strong> <span></span></li>
+                </ul>
+            </div>
+        </div>
+    </div>
   </dialog>
   
-  <!-- Analytics Modal -->
   <dialog id="analyticsModal">
       <div class="view-head">
         <h3>Usage Analytics</h3>
@@ -136,10 +164,8 @@
     let allPrompts = [];
     let editingId = null;
     let viewing = null;
-
-    // pagination state
     let currentPage = 1;
-    const PAGE_SIZE = 8; // change if you want fewer/more items per page
+    const PAGE_SIZE = 8;
 
     // ------- Elements -------
     const loader = document.getElementById('loader');
@@ -148,6 +174,7 @@
     const searchBox = document.getElementById('searchBox');
     const categorySelect = document.getElementById('categorySelect');
     const subtypeSelect = document.getElementById('subtypeSelect');
+    const sortSelect = document.getElementById('sortSelect'); // NEW
     const modal = document.getElementById('promptModal');
     const form = document.getElementById('promptForm');
     const serviceInput = document.getElementById('serviceInput');
@@ -155,19 +182,29 @@
     const descInput = document.getElementById('descInput');
     const toolInput = document.getElementById('toolInput');
     const textInput = document.getElementById('textInput');
+    const guidelinesInput = document.getElementById('guidelinesInput'); // NEW
     const contribInput = document.getElementById('contribInput');
     const modalTitle = document.getElementById('modalTitle');
+    const toast = document.getElementById('toast');
 
+    // View Modal Elements
     const vModal = document.getElementById('viewModal');
     const vhCat = document.getElementById('vhCat');
     const vhSub = document.getElementById('vhSub');
     const vhTool = document.getElementById('vhTool');
     const vhDesc = document.getElementById('vhDesc');
-    const vhTimes = document.getElementById('vhTimes');
+    const vhGuidelines = document.getElementById('vhGuidelines'); // NEW
+    const guidelinesSection = document.getElementById('guidelinesSection'); // NEW
     const vhText = document.getElementById('vhText');
+    const detailContrib = document.getElementById('detailContrib').lastElementChild; // NEW
+    const detailCreated = document.getElementById('detailCreated').lastElementChild; // NEW
+    const detailEditor = document.getElementById('detailEditor'); // NEW
+    const detailEditorSpan = detailEditor.lastElementChild; // NEW
+    const detailEdited = document.getElementById('detailEdited'); // NEW
+    const detailEditedSpan = detailEdited.lastElementChild; // NEW
+    const detailCopied = document.getElementById('detailCopied').lastElementChild; // NEW
 
     const analyticsModal = document.getElementById('analyticsModal');
-    const toast = document.getElementById('toast');
 
     // ------- Utils -------
     function showLoader() { loader.classList.add('show'); listEl.style.opacity = '0.4'; }
@@ -180,6 +217,10 @@
       if(!text) return '';
       try { const u = new URL(text); return `<a href="${u.href}" target="_blank" rel="noopener noreferrer" class="tool">${esc(u.hostname)}</a>`; }
       catch { return `<span class="tool">${esc(text)}</span>`; }
+    }
+    // NEW: Syntax highlighting for prompt text
+    function highlightSyntax(text) {
+        return esc(text).replace(/\{(\w+)\}/g, '<span class="placeholder">{$1}</span>');
     }
 
     function cardHTML(p){
@@ -204,41 +245,32 @@
       `;
     }
 
-    // Build pager UI with numbers + ellipses
     function renderPager(totalPages){
       const btn = (label, page, disabled=false, active=false) =>
         `<button class="btn-page${active ? ' active':''}" ${disabled ? 'disabled':''} data-page="${page}">${label}</button>`;
       const gap = `<span class="gap">…</span>`;
       let html = '';
       if (totalPages <= 1) { pagerEl.innerHTML = ''; return; }
-
-      // Prev
       html += btn('«', Math.max(1, currentPage - 1), currentPage === 1);
-
       const pages = [];
-      // Always show 1 and last, around current show neighbors
       const add = p => { if (p>=1 && p<=totalPages && !pages.includes(p)) pages.push(p); };
       add(1); add(totalPages);
       for (let p=currentPage-1; p<=currentPage+1; p++) add(p);
       for (let p=2; p<=3; p++) add(p);
       for (let p=totalPages-2; p<=totalPages-1; p++) add(p);
       pages.sort((a,b)=>a-b);
-
       pages.forEach((p,i)=>{
         if (i>0 && pages[i-1] !== p-1) html += gap;
         html += btn(p, p, false, p===currentPage);
       });
-
-      // Next
       html += btn('»', Math.min(totalPages, currentPage + 1), currentPage === totalPages);
-
       pagerEl.innerHTML = html;
       pagerEl.querySelectorAll('[data-page]').forEach(b=>{
         b.onclick = () => { const go = Number(b.getAttribute('data-page')); if (go && go!==currentPage){ currentPage=go; render(); } };
       });
     }
 
-    function getFilteredData(){
+    function getFilteredAndSortedData(){ // Renamed for clarity
       let data = [...allPrompts];
       const term = searchBox.value.trim().toLowerCase();
       if (term) data = data.filter(p => Object.values(p).some(val => String(val).toLowerCase().includes(term)));
@@ -246,11 +278,24 @@
       if (cat) data = data.filter(p => (p.service || '').toLowerCase() === cat);
       const sub = (subtypeSelect.value || '').toLowerCase();
       if (sub) data = data.filter(p => (p.subtype || '').toLowerCase() === sub);
+
+      // NEW: Sorting logic
+      const sortMethod = sortSelect.value;
+      if (sortMethod === 'oldest') {
+        data.sort((a, b) => (parseDbTime(a.created_at) || 0) - (parseDbTime(b.created_at) || 0));
+      } else if (sortMethod === 'copied') {
+        data.sort((a, b) => (b.copied_count || 0) - (a.copied_count || 0));
+      } else if (sortMethod === 'alphabetical') {
+        data.sort((a, b) => (a.description || a.service).localeCompare(b.description || b.service));
+      } else { // 'newest' is default
+        data.sort((a, b) => (parseDbTime(b.created_at) || 0) - (parseDbTime(a.created_at) || 0));
+      }
+
       return data;
     }
 
     function render(){
-      const data = getFilteredData();
+      const data = getFilteredAndSortedData(); // Use new sorting function
       const totalPages = Math.max(1, Math.ceil(data.length / PAGE_SIZE));
       if (currentPage > totalPages) currentPage = totalPages;
 
@@ -303,21 +348,44 @@
       const p = allPrompts.find(x => x.id === id);
       if(!p) return;
       viewing = p;
+      
+      // Populate new Intelligence View modal
       vhCat.textContent = p.service || '';
       vhSub.textContent = p.subtype || '';
       vhSub.style.display = p.subtype ? 'inline-block' : 'none';
       vhTool.innerHTML = asLinkIfURL(p.ai_tool);
       vhDesc.textContent = p.description || '';
-      vhDesc.style.display = p.description ? 'block' : 'none';
-      vhTimes.textContent = `By ${p.contributor} • ${fmtLocal(parseDbTime(p.created_at))}` +
-                            (p.last_editor ? ` • Edited: ${p.last_editor} (${fmtLocal(parseDbTime(p.last_edited_at))})` : '');
-      vhText.textContent = p.prompt_text || '';
+      
+      if (p.usage_guidelines) {
+        vhGuidelines.innerHTML = esc(p.usage_guidelines).replace(/\n/g, '<br>');
+        guidelinesSection.style.display = 'block';
+      } else {
+        guidelinesSection.style.display = 'none';
+      }
+
+      vhText.innerHTML = highlightSyntax(p.prompt_text || '');
+
+      detailContrib.textContent = p.contributor || '';
+      detailCreated.textContent = fmtLocal(parseDbTime(p.created_at));
+      detailCopied.textContent = `${p.copied_count || 0} times`;
+
+      if (p.last_editor) {
+        detailEditorSpan.textContent = p.last_editor;
+        detailEditedSpan.textContent = fmtLocal(parseDbTime(p.last_edited_at));
+        detailEditor.style.display = 'flex';
+        detailEdited.style.display = 'flex';
+      } else {
+        detailEditor.style.display = 'none';
+        detailEdited.style.display = 'none';
+      }
+
       vModal.showModal();
     }
 
     function exportToCSV() {
       if (allPrompts.length === 0) { showToast('No prompts to export.'); return; }
-      const headers = ['id','service','subtype','description','prompt_text','ai_tool','contributor','created_at','last_editor','last_edited_at','copied_count'];
+      // NEW: Added usage_guidelines to export
+      const headers = ['id','service','subtype','description','usage_guidelines','prompt_text','ai_tool','contributor','created_at','last_editor','last_edited_at','copied_count'];
       const csvRows = [headers.join(',')];
       for (const p of allPrompts) {
         const values = headers.map(h => `"${String(p[h] ?? '').replace(/"/g,'""')}"`);
@@ -333,25 +401,20 @@
     }
 
     function showAnalytics() {
-      // TOP 3 only
       const topCopied = [...allPrompts]
         .sort((a,b)=>(b.copied_count||0)-(a.copied_count||0))
         .slice(0, 3);
-
       document.getElementById('topCopiedList').innerHTML =
         topCopied.length
           ? topCopied.map(p => `<li><span>${esc(p.description || p.service)}</span><span class="count">${p.copied_count || 0} copies</span></li>`).join('')
           : `<li>No copies yet.</li>`;
-
       const cold = allPrompts.filter(p => (p.copied_count || 0) === 0).slice(0, 10);
       document.getElementById('coldPromptsList').innerHTML =
         cold.length ? cold.map(p => `<li><span>${esc(p.description || p.service)}</span></li>`).join('') : `<li>All prompts have been used!</li>`;
-
       const categoryCounts = allPrompts.reduce((acc,p)=>{ acc[p.service]= (acc[p.service]||0)+1; return acc; },{});
       const sorted = Object.entries(categoryCounts).sort(([,a],[,b])=>b-a);
       document.getElementById('categoryCountList').innerHTML =
         sorted.map(([cat,count]) => `<li><span>${esc(cat)}</span><span class="count">${count} prompts</span></li>`).join('');
-
       analyticsModal.showModal();
     }
 
@@ -369,10 +432,10 @@
     document.getElementById('analyticsClose').onclick = () => analyticsModal.close();
     document.getElementById('cancelForm').onclick = () => modal.close();
 
-    // reset to page 1 whenever filters/search change
     searchBox.oninput = () => { currentPage = 1; render(); };
     categorySelect.onchange = async () => { currentPage = 1; await refreshTaxonomy(); render(); };
     subtypeSelect.onchange = () => { currentPage = 1; render(); };
+    sortSelect.onchange = () => { currentPage = 1; render(); }; // NEW: trigger render on sort change
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -382,6 +445,7 @@
         description: descInput.value.trim() || null,
         ai_tool: toolInput.value.trim() || null,
         prompt_text: textInput.value.trim(),
+        usage_guidelines: guidelinesInput.value.trim() || null, // NEW: Add guidelines to payload
         contributor: contribInput.value.trim()
       };
       if (!payload.service || !payload.prompt_text || !payload.contributor) {
@@ -418,6 +482,7 @@
       descInput.value = viewing.description || '';
       toolInput.value = viewing.ai_tool || '';
       textInput.value = viewing.prompt_text || '';
+      guidelinesInput.value = viewing.usage_guidelines || ''; // NEW: Populate guidelines on edit
       contribInput.value = viewing.contributor || 'Tanya';
       modalTitle.textContent = 'Edit Prompt';
       vModal.close();
