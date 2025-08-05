@@ -3,15 +3,14 @@
 
 :root {
   --brand-navy: #0d2441;
-  /* NEW: Updated brand accent to a sophisticated gold to match Magistral's branding */
-  --brand-accent: #D4A056;
+  /* NEW: Updated brand accent to the official brand teal */
+  --brand-accent: #2DB4A7;
   --ink: #111827;
   --muted: #6b7280;
   --bg: #f9fafb;
   --card: #ffffff;
   --border-color: #e5e7eb;
   --radius: 12px;
-  /* NEW: Softer, more subtle shadows */
   --shadow: 0 2px 4px -1px rgba(0,0,0,.05), 0 1px 2px -2px rgba(0,0,0,.05);
   --shadow-lg: 0 8px 10px -3px rgba(0,0,0,.07), 0 4px 6px -4px rgba(0,0,0,.07);
 }
@@ -29,14 +28,14 @@ body {
 .site-header {
   background: var(--brand-navy);
   color: #fff;
-  padding: 24px 0;
+  padding: 20px 0;
   margin: 0 0 12px;
   border-bottom: 4px solid var(--brand-accent);
 }
 .head-flex { display: flex; align-items: center; justify-content: space-between; }
 .logo-area { display: flex; align-items: center; gap: 16px; text-decoration: none; color: #fff; }
-.logo-area svg { width: 40px; height: 40px; }
-.logo-area h1 { margin: 0; font-size: 28px; font-weight: 600; }
+/* NEW: Styles for text-based logo */
+.logo-area h1 { margin: 0; font-size: 28px; font-weight: 700; }
 .tagline { margin: 0; opacity: .8; font-weight: 400; font-size: 16px; }
 
 .toolbar {
@@ -48,7 +47,6 @@ body {
 }
 .toolbar-inner { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; }
 .toolbar .left { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
-/* NEW: Subtle dividers in toolbar */
 .toolbar .left > * { border-left: 1px solid var(--border-color); padding-left: 12px; }
 .toolbar .left > *:first-child { border-left: none; padding-left: 0; }
 .toolbar .right { display: flex; gap: 8px; }
@@ -61,16 +59,14 @@ body {
   font-size: 14px;
   transition: border-color .2s, box-shadow .2s;
 }
-/* NEW: Interactive focus for inputs and selects */
 .toolbar input:focus, .toolbar select:focus {
   outline: none;
   border-color: var(--brand-accent);
-  box-shadow: 0 0 0 3px #d4a05633;
+  box-shadow: 0 0 0 3px #2db4a733;
 }
-/* NEW: Style for active (non-default) filters */
 .toolbar select.active-filter {
   border-color: var(--brand-accent);
-  background-color: #fefdfb;
+  background-color: #f7fcfc;
 }
 
 .btn {
@@ -88,16 +84,12 @@ body {
   transition: all .2s ease;
   box-shadow: 0 1px 2px 0 rgba(0,0,0,.05);
 }
-/* NEW: Floating button hover effect */
 .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 8px -2px rgba(0,0,0,.1), 0 2px 4px -2px rgba(0,0,0,.1); }
 .btn svg { width: 16px; height: 16px; }
 .btn-accent { background: var(--brand-accent); color: #fff; border-color: var(--brand-accent); }
 .btn-danger { background: #ef4444; color: #fff; border-color: #dc2626; }
-/* NEW: Icon-only button style */
 .btn-icon { padding: 9px; }
 
-
-/* NEW: Card entrance animation and grid layout */
 @keyframes card-enter {
   from { opacity: 0; transform: translateY(15px); }
   to { opacity: 1; transform: translateY(0); }
@@ -112,20 +104,17 @@ body {
   border: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
-  opacity: 0; /* Start transparent for animation */
+  opacity: 0;
   animation: card-enter 0.4s ease-out forwards;
   transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
 }
-/* NEW: Enhanced card hover effect */
 .card:hover {
   transform: translateY(-4px);
   box-shadow: var(--shadow-lg);
   border-color: var(--brand-accent);
 }
 
-/* NEW: Redesigned card structure */
 .card-header { display: flex; gap: 8px; align-items: center; padding: 12px 20px; border-bottom: 1px solid #f3f4f6;}
-.card-icon { font-size: 16px; }
 .card-copies { margin-left: auto; font-size: 12px; font-weight: 500; color: var(--muted); }
 .card-body { padding: 16px 20px; flex-grow: 1; }
 .card-footer { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); padding: 12px 20px; border-top: 1px solid #f3f4f6; background-color: #f9fafb; border-bottom-left-radius: var(--radius); border-bottom-right-radius: var(--radius); }
@@ -140,7 +129,6 @@ body {
 .muted h4 { margin: 0 0 8px; font-size: 18px; color: var(--ink); }
 .muted p { margin: 0; font-size: 14px; }
 
-/* NEW: Smoother modal entrance animation */
 @keyframes fadeIn { from { opacity: 0; transform: scale(.97) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 dialog {
   border: 1px solid var(--border-color);
@@ -153,17 +141,15 @@ dialog {
 }
 dialog::backdrop { background: rgba(0,0,0,.4); backdrop-filter: blur(3px); }
 dialog form { padding: 24px 28px; }
-/* NEW: Branded modal titles */
 dialog h3 { margin: 0 0 24px; font-size: 20px; font-weight: 600; color: var(--brand-navy); text-transform: uppercase; letter-spacing: 0.05em; }
 label { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; font-size: 14px; font-weight: 500; }
 input, textarea { padding: 10px; border: 1px solid #ccc; border-radius: 8px; background: #fff; font-size: 14px; font-family: 'Inter', sans-serif; transition: border-color .2s, box-shadow .2s; }
 textarea { min-height: 150px; resize: vertical; }
 #guidelinesInput { min-height: 80px; }
-/* NEW: Interactive focus for form fields */
 input:focus, textarea:focus {
     outline: none;
     border-color: var(--brand-accent);
-    box-shadow: 0 0 0 3px #d4a05633;
+    box-shadow: 0 0 0 3px #2db4a733;
 }
 menu { display: flex; gap: 8px; justify-content: flex-end; margin: 24px 0 0 0; padding: 0; }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -181,7 +167,7 @@ menu { display: flex; gap: 8px; justify-content: flex-end; margin: 24px 0 0 0; p
 .view-section:last-child { margin-bottom: 0; }
 .view-section h4 { font-size: 14px; font-weight: 600; color: var(--brand-navy); margin: 0 0 12px 0; padding-bottom: 8px; border-bottom: 1px solid #e5e7eb; text-transform: uppercase; letter-spacing: 0.05em; }
 .view-section p { margin: 0; line-height: 1.6; }
-.guidelines { background: #fffbeB; border: 1px solid #fef3c7; border-left: 4px solid #facc15; padding: 12px; border-radius: 8px; font-size: 14px; color: #78350f; line-height: 1.6; }
+.guidelines { background: #f0f9ff; border: 1px solid #e0f2fe; border-left: 4px solid #38bdf8; padding: 12px; border-radius: 8px; font-size: 14px; color: #075985; line-height: 1.6; }
 .details-list { list-style: none; padding: 0; margin: 0; font-size: 14px; }
 .details-list li { display: flex; justify-content: space-between; padding: 8px 4px; }
 .details-list li:not(:last-child) { border-bottom: 1px solid #f3f4f6; }
@@ -205,9 +191,6 @@ menu { display: flex; gap: 8px; justify-content: flex-end; margin: 24px 0 0 0; p
 .analytics-list li:last-child { border-bottom: none; }
 .analytics-list .count { font-weight: 600; background: #eef2ff; padding: 2px 8px; border-radius: 6px; font-size: 12px; }
 
-/* ----------------------------------------------------
-  MOBILE RESPONSIVE ENHANCEMENTS
------------------------------------------------------*/
 @media (max-width: 1024px) {
   .wrap { padding: 0 16px; }
   .logo-area h1 { font-size: 24px; }
@@ -231,8 +214,8 @@ menu { display: flex; gap: 8px; justify-content: flex-end; margin: 24px 0 0 0; p
   .view-sidebar { border-left: none; padding-left: 0; border-top: 1px solid var(--border-color); padding-top: 24px; }
 }
 @media (max-width: 480px) {
-  .logo-area svg { width: 32px; height: 32px; }
-  .logo-area h1 { font-size: 20px; }
+  .logo-area { gap: 12px; }
+  .logo-area h1 { font-size: 22px; }
   .tagline { font-size: 13px; }
   .btn { padding: 10px 12px; font-size: 14px; }
   .toolbar .right { grid-template-columns: 1fr; }
@@ -242,7 +225,7 @@ menu { display: flex; gap: 8px; justify-content: flex-end; margin: 24px 0 0 0; p
 .pager { display: flex; justify-content: center; align-items: center; gap: 6px; padding: 8px 0 24px; }
 .pager .btn-page { display: inline-flex; align-items: center; justify-content: center; min-width: 36px; height: 36px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--border-color); background: #fff; color: #111827; cursor: pointer; font-size: 14px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
 .pager .btn-page:hover { background: #f9fafb; }
-.pager .active { background: var(--brand-accent); color: #fff; border-color: #b98b4c; }
+.pager .active { background: var(--brand-accent); color: #fff; border-color: var(--brand-accent); }
 .pager .gap { padding: 0 6px; color: var(--muted); user-select: none; }
 @media (max-width: 480px) {
   .pager { gap: 4px; }
