@@ -13,12 +13,9 @@
   <header class="site-header">
     <div class="wrap head-flex">
       <a href="#" class="logo-area">
-        <svg width="42" height="42" viewBox="0 0 100 100" fill="currentColor">
-          <path d="M15 85V15H35L50 45L65 15H85V85H68V35L56 65H44L32 35V85H15Z"/>
-        </svg>
         <div>
-          <h1>Magistral Prompt Hub</h1>
-          <p class="tagline">Store • Edit</p>
+          <h1>Magistral</h1>
+          <p class="tagline">Prompt Hub</p>
         </div>
       </a>
     </div>
@@ -219,7 +216,6 @@
     function highlightSyntax(text) {
         return esc(text).replace(/\{([^}]+)\}/g, '<span class="placeholder">{$1}</span>');
     }
-    // NEW: Function to add a class to active filters for styling
     function updateActiveFilters() {
         [categorySelect, subtypeSelect, sortSelect].forEach(sel => {
             if (sel.value && sel.selectedIndex > 0) {
@@ -231,17 +227,13 @@
     }
 
     function cardHTML(p){
-      // For now, category icons are placeholders. We can map specific categories to specific icons here.
-      const categoryIcons = { 'Research': '📊', 'Marketing': '📢', 'Strategy': '♟️', 'Default': '📄' };
-      const icon = categoryIcons[p.service] || categoryIcons['Default'];
-
       const created = fmtLocal(parseDbTime(p.created_at));
       const copies = (p.copied_count ?? 0);
 
+      // NEW: HTML structure for card no longer includes an icon
       return `
         <article class="card" data-open="${p.id}" style="animation-delay: 0ms;">
           <div class="card-header">
-            <span class="card-icon">${icon}</span>
             <span class="badge">${esc(p.service)}</span>
             ${p.subtype ? `<span class="chip">${esc(p.subtype)}</span>` : ''}
             <span class="card-copies">${copies} ${copies === 1 ? 'copy' : 'copies'}</span>
@@ -303,11 +295,11 @@
     }
 
     function render(){
-      listEl.classList.add('list-fade-out'); // NEW: Add fade out class for smooth transitions
+      listEl.classList.add('list-fade-out');
       
       setTimeout(() => {
         const data = getFilteredAndSortedData();
-        updateActiveFilters(); // NEW: Update filter styling
+        updateActiveFilters();
         const totalPages = Math.max(1, Math.ceil(data.length / PAGE_SIZE));
         if (currentPage > totalPages) currentPage = totalPages;
 
@@ -317,7 +309,6 @@
         if(pageItems.length){
             listEl.innerHTML = pageItems.map(cardHTML).join('');
         } else {
-            // NEW: Enhanced empty state message
             listEl.innerHTML = `
                 <div class="muted">
                     <svg class="muted-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
@@ -328,13 +319,12 @@
         
         listEl.querySelectorAll('[data-open]').forEach(el => el.onclick = () => openView(Number(el.getAttribute('data-open'))));
         
-        // NEW: Staggered entrance animation for cards
         listEl.querySelectorAll('.card').forEach((card, index) => {
           card.style.animationDelay = `${index * 50}ms`;
         });
         
         renderPager(totalPages);
-        listEl.classList.remove('list-fade-out'); // NEW: Remove fade out class
+        listEl.classList.remove('list-fade-out');
       }, 150);
     }
 
